@@ -35,6 +35,15 @@ how to report results or add a terminal.
 
 Statusline swatches use 24-bit SGR colors, which work in all of them.
 
+**Program status (OSC 7501).** Every state change is also reported with the
+[Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status),
+which is not tied to any terminal. Terminals that implement it (Ghostty,
+through libghostty) can show the session state natively, with no glyph or
+config. The others ignore it. The report carries `app=claude-code`, the title
+`Claude Code · <dir>`, and for permission prompts `state=blocked:kind=permission`
+plus Claude's notification message. Inside tmux it needs passthrough enabled
+(see [tmux](#tmux)). To turn it off, set `"status": false`.
+
 Each terminal is a driver implementing `terminal.Terminal`
 (`internal/terminal/drivers.go`). Detection reads environment variables
 (`internal/terminal/detect.go`). Inside tmux it asks tmux which terminal
@@ -61,15 +70,49 @@ wezterm.on('format-tab-title', function(tab)
 end)
 ```
 
-**tmux**: background tint and title work without any setup; tmux applies
-them to the pane. Tab colors (kitty, iTerm2, WezTerm) have to reach the outer
-terminal, so they need `set -g allow-passthrough on`. They are wrapped
-automatically when `$TMUX` is set.
-
 **Title fallback**: Claude Code sets the terminal title itself and may
 overwrite the glyph. If your version supports
 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`, set it. If you don't want the glyph,
 set `"title": false`.
+
+### tmux
+
+Background tint and title work without any setup, because tmux understands
+those sequences and applies them to the pane. Everything else has to reach
+the outer terminal through tmux passthrough:
+
+- tab colors (Kitty, iTerm2, WezTerm)
+- program status reports (OSC 7501)
+
+claude-colorizer wraps these for passthrough automatically when `$TMUX` is
+set, but tmux drops them unless passthrough is on. Add this to `~/.tmux.conf`
+(or `~/.config/tmux/tmux.conf`):
+
+```tmux
+set -g allow-passthrough all
+```
+
+Reload it in a running tmux with `tmux source-file ~/.tmux.conf`.
+
+| Value | Effect                                                              |
+|-------|---------------------------------------------------------------------|
+| `off` | Default. Tab colors and status reports are dropped.                 |
+| `on`  | Passed through only from panes currently visible.                   |
+| `all` | Passed through from every pane, including windows you aren't viewing. |
+
+Use `all` so a Claude session in a background window can still mark its tab
+as blocked or done while you are elsewhere. `on` drops those updates until you
+switch back to the window. The tradeoff is that any program in any pane can
+then send escape sequences straight to the outer terminal.
+
+To try it in the current pane only, without editing your config:
+
+```sh
+tmux set -p allow-passthrough all
+```
+
+Check the global value with `tmux show -gv allow-passthrough`, and the
+detected terminal with `claude-colorizer detect` (it prints `tmux: yes`).
 
 ## Install
 
@@ -145,11 +188,12 @@ you can tell from another tab or window whether Claude needs you.
 
 | Color         | Glyph | State     | Meaning                                                    |
 |---------------|-------|-----------|------------------------------------------------------------|
+| Slate         | ⚪    | idle      | The session just started (or was cleared) and is waiting for your first prompt. |
 | Blue          | 🔵    | working   | Claude is working: thinking, writing, running tools. Nothing for you to do yet. |
 | Amber         | 🟡    | attention | Claude is waiting on you: a permission prompt, or it has sat idle waiting for input. |
 | Green         | 🟢    | done      | Claude finished its turn. Read the reply and send the next prompt. |
 | Red           | 🔴    | error     | Something failed: the API request errored, or a tool call failed. |
-| Your defaults | none  | reset     | The session just started or ended.                         |
+| Your defaults | none  | reset     | The session ended.                                         |
 
 Red after a failed tool call doesn't always mean the turn is over. Claude
 often recovers, and the color goes back to blue on its next successful tool
@@ -161,13 +205,14 @@ at the start of the window title. See the Title fallback column in
 
 ### Hook events behind each state
 
-| Hook event                          | State     | Default tab / tint      |
-|-------------------------------------|-----------|-------------------------|
-| `UserPromptSubmit`, `PostToolUse`   | working   | `#3b82f6` / `#151b2b`   |
-| `Notification` (permission, idle)   | attention | `#f59e0b` / `#2a2112`   |
-| `Stop`                              | done      | `#22c55e` / `#13231a`   |
-| `StopFailure`, `PostToolUseFailure` | error     | `#ef4444` / `#2b1515`   |
-| `SessionStart`, `SessionEnd`        | reset     | terminal defaults       |
+| Hook event                          | State     | Default tab / tint      | OSC 7501 `state` |
+|-------------------------------------|-----------|-------------------------|------------------|
+| `UserPromptSubmit`, `PostToolUse`   | working   | `#3b82f6` / `#151b2b`   | `working`        |
+| `Notification` (permission, idle)   | attention | `#f59e0b` / `#2a2112`   | `blocked`        |
+| `Stop`                              | done      | `#22c55e` / `#13231a`   | `done`           |
+| `StopFailure`, `PostToolUseFailure` | error     | `#ef4444` / `#2b1515`   | `error`          |
+| `SessionStart`                      | idle      | `#94a3b8` / `#181b21`   | `idle`           |
+| `SessionEnd`                        | reset     | terminal defaults       | `clear`          |
 
 To change any color or glyph, see [Configuration](#configuration).
 
@@ -182,6 +227,7 @@ to print the effective config.
   "tab": true,
   "background": true,
   "title": true,
+  "status": true,
   "states": {
     "working": { "tab": "#7c3aed", "background": "#1a1426" },
     "done":    { "background": "#eef9f0" }

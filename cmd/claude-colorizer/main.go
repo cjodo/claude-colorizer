@@ -31,7 +31,7 @@ Usage:
                                            With CMD, its output is shown on the line above.
   claude-colorizer hook                    Claude Code hook handler (reads event JSON on stdin).
   claude-colorizer show [FILE...]          Highlight color literals in files or stdin.
-  claude-colorizer set STATE               Apply a state: working|attention|done|error.
+  claude-colorizer set STATE               Apply a state: idle|working|attention|done|error.
   claude-colorizer try COLOR               Set the terminal background to COLOR to preview it.
   claude-colorizer reset                   Restore tab color, background and title.
   claude-colorizer detect                  Show the detected terminal and its capabilities.
@@ -72,11 +72,11 @@ func main() {
 			break
 		}
 		cwd, _ := os.Getwd()
-		err = applyState(cfg, args[0], cwd)
+		err = applyState(cfg, args[0], hookInput{Cwd: cwd})
 	case "try":
 		err = runTry(args)
 	case "reset":
-		err = applyState(cfg, "", "")
+		err = applyState(cfg, "", hookInput{})
 	case "detect":
 		runDetect(cfg)
 	case "install", "uninstall":
@@ -166,15 +166,19 @@ func renderSwatches(sc config.Statusline, matches []colors.Match) string {
 // hook
 
 type hookInput struct {
-	Event string `json:"hook_event_name"`
-	Cwd   string `json:"cwd"`
+	Event            string `json:"hook_event_name"`
+	Cwd              string `json:"cwd"`
+	Message          string `json:"message"`           // Notification
+	NotificationType string `json:"notification_type"` // Notification
 }
 
 // stateFor maps a Claude Code hook event to a state; "" means reset, ok=false
 // means the event is ignored.
 func stateFor(event string) (state string, ok bool) {
 	switch event {
-	case "SessionStart", "SessionEnd":
+	case "SessionStart":
+		return config.Idle, true
+	case "SessionEnd":
 		return "", true
 	case "UserPromptSubmit", "PostToolUse":
 		return config.Working, true
@@ -197,15 +201,19 @@ func runHook(cfg config.Config, r io.Reader) error {
 	if !ok {
 		return nil
 	}
-	return applyState(cfg, state, in.Cwd)
+	return applyState(cfg, state, in)
 }
 
 // applyState recolors the terminal for state, or restores it when state is "".
-func applyState(cfg config.Config, state, cwd string) error {
+func applyState(cfg config.Config, state string, in hookInput) error {
 	term := terminal.Detect(os.Getenv)
 	caps := term.Capabilities()
+	cwd := in.Cwd
 
 	var seqs [][]byte
+	if ps := programStatus(state, in); cfg.StatusEnabled() && ps.State != "" {
+		seqs = append(seqs, terminal.ProgramStatus(ps))
+	}
 	if state == "" {
 		if cfg.TabEnabled() {
 			seqs = append(seqs, term.ResetTabColor())
@@ -233,6 +241,35 @@ func applyState(cfg config.Config, state, cwd string) error {
 		}
 	}
 	return writeTTY(seqs...)
+}
+
+// programStatus maps a state to an OSC 7501 report, so terminals that speak
+// the Program Status Protocol can show the session state natively. Custom
+// states have no protocol equivalent and get an empty State.
+func programStatus(state string, in hookInput) terminal.Status {
+	s := terminal.Status{App: "claude-code", Title: title("", in.Cwd)}
+	switch state {
+	case "":
+		s = terminal.Status{State: terminal.StatusClear}
+	case config.Idle:
+		s.State = terminal.StatusIdle
+	case config.Working:
+		s.State = terminal.StatusWorking
+	case config.Attention:
+		s.State = terminal.StatusBlocked
+		s.Msg = in.Message
+		switch in.NotificationType {
+		case "permission_prompt":
+			s.Kind = "permission"
+		case "elicitation_dialog":
+			s.Kind = "question"
+		}
+	case config.Done:
+		s.State = terminal.StatusDone
+	case config.Error:
+		s.State = terminal.StatusError
+	}
+	return s
 }
 
 func title(glyph, cwd string) string {
@@ -386,7 +423,7 @@ func runDetect(cfg config.Config) {
 	}
 	fmt.Printf("terminal:   %s\ntab color:  %s\nbackground: %s\ntitle:      %s\ntruecolor:  %s\ntmux:       %s\n",
 		term.Name(), yn(c.TabColor), yn(c.Background), yn(c.Title), yn(c.TrueColor), yn(terminal.InTmux(os.Getenv)))
-	for _, s := range []string{config.Working, config.Attention, config.Done, config.Error} {
+	for _, s := range []string{config.Idle, config.Working, config.Attention, config.Done, config.Error} {
 		st := cfg.States[s]
 		t, _ := colors.ParseHex(st.Tab)
 		b, _ := colors.ParseHex(st.Background)
