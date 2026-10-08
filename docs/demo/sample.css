@@ -1,0 +1,15 @@
+:root {
+  --base:     #1e1e2e;
+  --text:     #cdd6f4;
+  --accent:   #f5c2e7;
+  --link:     #89b4fa;
+  --warn:     #fab387;
+  --ok:       #a6e3a1;
+  --short:    #f38;
+  --overlay:  #11111bcc;
+  --shadow:   rgba(17, 17, 27, 0.6);
+  --border:   rgb(69 71 90);
+  --peach:    hsl(23, 92%, 75%);
+  --teal:     hsla(170, 57%, 73%, 0.9);
+  --lavender: oklch(0.78 0.11 285);
+}

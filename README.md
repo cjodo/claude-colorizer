@@ -4,6 +4,8 @@ Color visualization for Claude Code, in the spirit of
 [nvim-colorizer](https://github.com/NvChad/nvim-colorizer.lua). Written in Go
 with no dependencies.
 
+![claude-colorizer show and statusline output](docs/demo.gif)
+
 - **Statusline swatches.** Colors mentioned in the conversation (Claude's
   replies, code it writes, your prompts) appear as live swatches under the
   prompt. It reads `#rgb`, `#rrggbb(aa)`, `rgb()/rgba()`, `hsl()/hsla()` and

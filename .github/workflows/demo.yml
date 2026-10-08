@@ -1,0 +1,43 @@
+name: demo
+
+# Re-records docs/demo.gif from docs/demo/demo.tape and commits it when the
+# rendered output could have changed.
+on:
+  push:
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "docs/demo/**"
+      - ".github/workflows/demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  record:
+    # Pushes made with GITHUB_TOKEN don't trigger workflows; this guards
+    # against a loop if a PAT is ever used instead.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - run: make build
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: docs/demo/demo.tape
+
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "docs: regenerate demo [skip ci]"
+          file_pattern: docs/demo.gif
