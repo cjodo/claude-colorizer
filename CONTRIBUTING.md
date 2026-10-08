@@ -36,7 +36,8 @@ reach the terminal.
 
 ```sh
 claude-colorizer detect            # right terminal, expected capabilities?
-claude-colorizer set working       # blue tab / tint, 🔵 title glyph
+claude-colorizer set idle          # slate tab / tint, ⚪ title glyph
+claude-colorizer set working       # blue, 🔵
 claude-colorizer set attention     # amber
 claude-colorizer set done          # green
 claude-colorizer set error         # red
@@ -64,7 +65,8 @@ CLAUDE_COLORIZER_TERMINAL=kitty claude-colorizer set working
 
 Repeat stage 1 in a tmux pane. `detect` should still name the outer
 terminal. The background should change for that pane only. Tab colors for
-kitty, iTerm2 and WezTerm also need `tmux set -g allow-passthrough on`.
+kitty, iTerm2 and WezTerm, and OSC 7501 status reports, also need
+`tmux set -g allow-passthrough all` (see [tmux](README.md#tmux)).
 
 ### 3. A real Claude Code session
 
@@ -74,6 +76,7 @@ CLAUDE_COLORIZER_DEBUG=1 claude
 
 | Do this                                    | Expect                          |
 |--------------------------------------------|---------------------------------|
+| Start `claude` (or run `/clear`)           | slate (idle)                    |
 | Send any prompt                            | blue (working)                  |
 | Ask for a command that needs permission    | amber (attention)               |
 | Let the reply finish                       | green (done)                    |
