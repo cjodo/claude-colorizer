@@ -80,9 +80,11 @@ kitty, iTerm2 and WezTerm, and OSC 7501 status reports, also need
 `tmux set -g allow-passthrough all` (see [tmux](README.md#tmux)).
 
 If your terminal has a translucent background, the tinted pane turns opaque,
-because tmux paints its cells with an explicit color. Set
-`"tmuxBackground": "terminal"` and repeat: the whole window should be tinted
-and keep its opacity, and `reset` should bring back both.
+because tmux paints its cells with an explicit color. If the terminal can
+apply opacity to explicit cell colors (Ghostty: `background-opacity-cells =
+true`), turn that on and repeat: only the pane should be tinted, and it should
+stay translucent. Then try `"tmuxBackground": "terminal"`: the whole window
+should be tinted and keep its opacity, and `reset` should bring back both.
 
 ### 3. A real Claude Code session
 
@@ -109,7 +111,7 @@ CLAUDE_COLORIZER_DEBUG=1 claude
 | `detect` says `generic`                        | The terminal's env var didn't make it through (SSH, `sudo`, tmux)  |
 | Works by hand, not inside Claude Code          | The hook can't reach the TTY; check the debug output               |
 | Colors stay after quitting                     | `SessionEnd` didn't run (the session was killed or crashed)        |
-| Tint is opaque inside tmux                     | tmux paints the pane itself; set `"tmuxBackground": "terminal"`    |
+| Tint is opaque inside tmux                     | tmux paints the pane itself; see [Background opacity](README.md#tmux) |
 | Swatches look washed out or wrong              | No truecolor; `echo $COLORTERM` should print `truecolor`           |
 
 ## Reporting a terminal

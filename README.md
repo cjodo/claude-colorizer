@@ -119,17 +119,27 @@ Check the global value with `tmux show -gv allow-passthrough`, and the
 detected terminal with `claude-colorizer detect` (it prints `tmux: yes`).
 
 **Background opacity.** tmux paints a tinted pane with an explicit color in
-every cell, and terminals draw explicit cell colors fully opaque, so a
-translucent terminal (`background-opacity` in Ghostty, Kitty, Alacritty, …)
-turns solid while the tint is on. To keep the opacity, send the tint to the
-outer terminal instead:
+every cell, and terminals normally draw explicit cell colors fully opaque, so
+a translucent terminal turns solid while the tint is on. There are two fixes:
 
-```json
-{ "tmuxBackground": "terminal" }
-```
+- **Keep the tint on Claude's pane** and have the terminal apply its opacity
+  to explicit cell colors too. In Ghostty 1.2+, add this to its config:
 
-This needs passthrough enabled, and the tint then covers the whole terminal
-window rather than just Claude's pane. The default is `"pane"`.
+  ```
+  background-opacity-cells = true
+  ```
+
+  Other explicitly colored cells (the tmux status bar, editor themes) then
+  turn translucent as well.
+
+- **Tint the whole terminal instead**, for terminals without such an option:
+
+  ```json
+  { "tmuxBackground": "terminal" }
+  ```
+
+  This needs passthrough enabled, and the tint covers every pane in the
+  window rather than just Claude's. The default is `"pane"`.
 
 ## Install
 
