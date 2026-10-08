@@ -31,7 +31,10 @@ Statusline swatches use 24-bit SGR colors, which work in all of them.
 
 Each terminal is a driver implementing `terminal.Terminal`
 (`internal/terminal/drivers.go`). Detection reads environment variables
-(`internal/terminal/detect.go`). To override detection, set
+(`internal/terminal/detect.go`). Inside tmux it asks tmux which terminal
+each client tty attached to the session is running instead, because the
+environment describes the terminal that started the tmux server. If
+different terminals are attached, tab colors are sent to all of them. To override detection, set
 `CLAUDE_COLORIZER_TERMINAL=kitty|ghostty|wezterm|iterm2|warp|alacritty|windows-terminal|generic`.
 Run `claude-colorizer detect` to see what was picked.
 

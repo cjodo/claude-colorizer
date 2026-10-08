@@ -96,3 +96,45 @@ func TestTmuxWrap(t *testing.T) {
 		t.Errorf("got %q, want %q", buf.String(), want)
 	}
 }
+
+// Inside tmux, the attached client ttys win over stale environment variables.
+func TestDetectTmuxClients(t *testing.T) {
+	defer func(f func(string) []string) { tmuxClients = f }(tmuxClients)
+	stale := env("TMUX", "/tmp/tmux-1000/default,1,5", "TMUX_PANE", "%15",
+		"TERM_PROGRAM", "tmux", "GHOSTTY_RESOURCES_DIR", "/usr/share/ghostty")
+
+	cases := []struct {
+		clients []string
+		want    string
+	}{
+		{[]string{"kitty(0.49.2)|xterm-kitty"}, "kitty"},
+		{[]string{"kitty(0.49.2)|xterm-kitty", "kitty(0.49.2)|xterm-kitty"}, "kitty"},
+		{[]string{"kitty(0.49.2)|xterm-kitty", "ghostty_1.3.1|xterm-ghostty"}, "kitty+ghostty"},
+		{[]string{"|screen-256color"}, "generic"},
+		{nil, "ghostty"}, // no clients (e.g. tmux unreachable): fall back to env
+	}
+	for _, tc := range cases {
+		var gotPane string
+		tmuxClients = func(pane string) []string { gotPane = pane; return tc.clients }
+		if got := Detect(stale).Name(); got != tc.want {
+			t.Errorf("clients %q: Detect = %s, want %s", tc.clients, got, tc.want)
+		}
+		if gotPane != "%15" {
+			t.Errorf("tmuxClients pane = %q, want %%15", gotPane)
+		}
+	}
+}
+
+func TestMulti(t *testing.T) {
+	m := Multi{Ghostty{}, Kitty{}}
+	c := colors.Color{R: 1, G: 2, B: 3}
+	if !m.Capabilities().TabColor {
+		t.Error("Multi with kitty should report tab color")
+	}
+	if got, want := string(m.SetTabColor(c)), string(Kitty{}.SetTabColor(c)); got != want {
+		t.Errorf("SetTabColor = %q, want kitty's %q", got, want)
+	}
+	if got, want := string(m.SetBackground(c)), string(Ghostty{}.SetBackground(c)); got != want {
+		t.Errorf("SetBackground = %q, want a single OSC 11 %q", got, want)
+	}
+}

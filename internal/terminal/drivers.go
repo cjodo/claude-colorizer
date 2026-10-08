@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/cjodo/claude-colorizer/internal/colors"
 )
@@ -185,4 +186,62 @@ type Generic struct {
 func (Generic) Name() string { return "generic" }
 func (Generic) Capabilities() Capabilities {
 	return Capabilities{Background: true, Title: true, TrueColor: true}
+}
+
+// ---------------------------------------------------------------------------
+// Multi: several different terminals attached to one tmux session. Tab
+// colors are sent in every driver's dialect (each terminal ignores the
+// others'); background and title come from the first driver that has them,
+// since tmux applies those to the pane once for all clients.
+
+type Multi []Terminal
+
+func (m Multi) Name() string {
+	names := make([]string, len(m))
+	for i, t := range m {
+		names[i] = t.Name()
+	}
+	return strings.Join(names, "+")
+}
+
+func (m Multi) Capabilities() Capabilities {
+	var c Capabilities
+	for _, t := range m {
+		tc := t.Capabilities()
+		c.TabColor = c.TabColor || tc.TabColor
+		c.Background = c.Background || tc.Background
+		c.Title = c.Title || tc.Title
+		c.TrueColor = c.TrueColor || tc.TrueColor
+	}
+	return c
+}
+
+func (m Multi) SetTabColor(c colors.Color) []byte {
+	return m.all(func(t Terminal) []byte { return t.SetTabColor(c) })
+}
+func (m Multi) ResetTabColor() []byte { return m.all(Terminal.ResetTabColor) }
+
+func (m Multi) SetBackground(c colors.Color) []byte {
+	return m.first(func(t Terminal) []byte { return t.SetBackground(c) })
+}
+func (m Multi) ResetBackground() []byte { return m.first(Terminal.ResetBackground) }
+func (m Multi) SetTitle(s string) []byte {
+	return m.first(func(t Terminal) []byte { return t.SetTitle(s) })
+}
+
+func (m Multi) all(f func(Terminal) []byte) []byte {
+	var b []byte
+	for _, t := range m {
+		b = append(b, f(t)...)
+	}
+	return b
+}
+
+func (m Multi) first(f func(Terminal) []byte) []byte {
+	for _, t := range m {
+		if s := f(t); s != nil {
+			return s
+		}
+	}
+	return nil
 }
