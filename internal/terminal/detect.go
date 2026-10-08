@@ -46,5 +46,5 @@ func Detect(getenv func(string) string) Terminal {
 	return Generic{}
 }
 
-// InTmux reports whether sequences must be wrapped for tmux passthrough.
+// InTmux reports whether output goes through tmux (see Writer).
 func InTmux(getenv func(string) string) bool { return getenv("TMUX") != "" }

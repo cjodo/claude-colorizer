@@ -86,10 +86,12 @@ func TestSequences(t *testing.T) {
 func TestTmuxWrap(t *testing.T) {
 	var buf bytes.Buffer
 	w := Writer{W: &buf, Tmux: true}
-	if err := w.Write(nil, osc("11;#000000")); err != nil {
+	// tmux applies background and title itself; other sequences pass through.
+	if err := w.Write(nil, osc("11;#000000"), osc("111"), osc("1337;SetUserVar=x=eQ==")); err != nil {
 		t.Fatal(err)
 	}
-	want := "\x1bPtmux;\x1b\x1b]11;#000000\x1b\x1b\\\x1b\\"
+	want := "\x1b]11;#000000\x1b\\" + "\x1b]111\x1b\\" +
+		"\x1bPtmux;\x1b\x1b]1337;SetUserVar=x=eQ==\x1b\x1b\\\x1b\\"
 	if buf.String() != want {
 		t.Errorf("got %q, want %q", buf.String(), want)
 	}

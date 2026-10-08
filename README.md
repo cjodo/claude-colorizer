@@ -52,7 +52,9 @@ wezterm.on('format-tab-title', function(tab)
 end)
 ```
 
-**tmux**: run `set -g allow-passthrough on`. Sequences are wrapped
+**tmux**: background tint and title work without any setup; tmux applies
+them to the pane. Tab colors (kitty, iTerm2, WezTerm) have to reach the outer
+terminal, so they need `set -g allow-passthrough on`. They are wrapped
 automatically when `$TMUX` is set.
 
 **Title fallback**: Claude Code sets the terminal title itself and may
