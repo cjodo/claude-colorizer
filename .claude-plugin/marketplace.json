@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "claude-colorizer",
+  "owner": { "name": "cjodo" },
+  "plugins": [
+    {
+      "name": "claude-colorizer",
+      "description": "Terminal colors by session state, plus color swatches in the statusline.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

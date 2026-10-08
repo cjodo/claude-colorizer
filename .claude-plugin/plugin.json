@@ -1,0 +1,8 @@
+{
+  "name": "claude-colorizer",
+  "version": "0.1.0",
+  "description": "Recolors the terminal tab and background by Claude Code session state (working, waiting, done, error).",
+  "author": { "name": "cjodo" },
+  "license": "MIT",
+  "keywords": ["color", "terminal", "statusline", "kitty", "ghostty", "wezterm", "iterm2", "alacritty"]
+}
