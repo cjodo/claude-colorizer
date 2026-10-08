@@ -19,6 +19,7 @@ import (
 
 	"github.com/cjodo/claude-colorizer/internal/colors"
 	"github.com/cjodo/claude-colorizer/internal/config"
+	"github.com/cjodo/claude-colorizer/internal/session"
 	"github.com/cjodo/claude-colorizer/internal/setup"
 	"github.com/cjodo/claude-colorizer/internal/terminal"
 	"github.com/cjodo/claude-colorizer/internal/transcript"
@@ -44,6 +45,8 @@ Environment:
   CLAUDE_COLORIZER_TERMINAL  force a driver: kitty, ghostty, wezterm, iterm2, warp,
                              alacritty, windows-terminal, generic
   CLAUDE_COLORIZER_CONFIG    config file path (default ~/.config/claude-colorizer/config.json)
+  CLAUDE_COLORIZER_STATE_DIR per-session state for the statusline indicator
+                             (default: user cache dir/claude-colorizer/sessions)
   CLAUDE_COLORIZER_DEBUG     print hook errors to stderr
 `
 
@@ -104,6 +107,7 @@ func main() {
 // statusline
 
 type statusInput struct {
+	SessionID      string `json:"session_id"`
 	TranscriptPath string `json:"transcript_path"`
 }
 
@@ -136,8 +140,31 @@ func runStatusline(cfg config.Config, args []string) error {
 		}
 		matches, _ = transcript.RecentColors(si.TranscriptPath, sources, cfg.Statusline.Max)
 	}
-	fmt.Println(renderSwatches(cfg.Statusline, matches))
+	line := renderSwatches(cfg.Statusline, matches)
+	if ind := renderIndicator(cfg, session.Load(si.SessionID)); ind != "" {
+		if line != "" {
+			ind += "  "
+		}
+		line = ind + line
+	}
+	fmt.Println(line)
 	return nil
+}
+
+// renderIndicator shows the session's current state as a dot in its tab
+// color, optionally followed by the state name.
+func renderIndicator(cfg config.Config, state string) string {
+	mode := cfg.Statusline.Indicator
+	style, ok := cfg.States[state]
+	c, err := colors.ParseHex(style.Tab)
+	if !ok || err != nil || mode == "none" {
+		return ""
+	}
+	s := fg(c) + "●" + sgrReset
+	if mode != "dot" {
+		s += " " + state
+	}
+	return s
 }
 
 func renderSwatches(sc config.Statusline, matches []colors.Match) string {
@@ -167,6 +194,7 @@ func renderSwatches(sc config.Statusline, matches []colors.Match) string {
 
 type hookInput struct {
 	Event            string `json:"hook_event_name"`
+	SessionID        string `json:"session_id"`
 	Cwd              string `json:"cwd"`
 	Message          string `json:"message"`           // Notification
 	NotificationType string `json:"notification_type"` // Notification
@@ -201,7 +229,12 @@ func runHook(cfg config.Config, r io.Reader) error {
 	if !ok {
 		return nil
 	}
-	return applyState(cfg, state, in)
+	// Record it for the statusline indicator even if the terminal is unreachable.
+	saveErr := session.Save(in.SessionID, state)
+	if err := applyState(cfg, state, in); err != nil {
+		return err
+	}
+	return saveErr
 }
 
 // applyState recolors the terminal for state, or restores it when state is "".

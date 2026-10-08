@@ -29,11 +29,12 @@ type Style struct {
 }
 
 type Statusline struct {
-	Max     int      `json:"max"`     // max swatches shown
-	Sources []string `json:"sources"` // any of assistant, tools, user
-	Label   string   `json:"label"`   // "hex", "original" or "none"
-	Prefix  string   `json:"prefix"`  // printed before the swatches
-	Empty   string   `json:"empty"`   // printed when no colors were found
+	Max       int      `json:"max"`       // max swatches shown
+	Sources   []string `json:"sources"`   // any of assistant, tools, user
+	Label     string   `json:"label"`     // "hex", "original" or "none"
+	Indicator string   `json:"indicator"` // session state: "label", "dot" or "none"
+	Prefix    string   `json:"prefix"`    // printed before the swatches
+	Empty     string   `json:"empty"`     // printed when no colors were found
 }
 
 type Config struct {
@@ -61,11 +62,12 @@ func Default() Config {
 			Error:     {Tab: "#ef4444", Background: "#2b1515", Glyph: "🔴"},
 		},
 		Statusline: Statusline{
-			Max:     12,
-			Sources: []string{"assistant", "tools", "user"},
-			Label:   "hex",
-			Prefix:  "",
-			Empty:   "",
+			Max:       12,
+			Sources:   []string{"assistant", "tools", "user"},
+			Label:     "hex",
+			Indicator: "label",
+			Prefix:    "",
+			Empty:     "",
 		},
 	}
 }
@@ -136,6 +138,9 @@ func merge(base, user Config) Config {
 	}
 	if u.Label != "" {
 		s.Label = u.Label
+	}
+	if u.Indicator != "" {
+		s.Indicator = u.Indicator
 	}
 	if u.Prefix != "" {
 		s.Prefix = u.Prefix

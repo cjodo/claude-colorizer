@@ -9,7 +9,11 @@ with no dependencies.
   prompt. It reads `#rgb`, `#rrggbb(aa)`, `rgb()/rgba()`, `hsl()/hsla()` and
   `oklch()`.
 - **State colors.** The terminal tab and background tint change as the
-  session moves through *working → needs you → done / error*.
+  session moves through *idle → working → needs you → done / error*.
+- **State indicator.** The current state also appears as a colored dot at
+  the start of the statusline (`● working`), on the line Claude Code already
+  reserves under the prompt. It works in any terminal and isn't overwritten
+  the way the title glyph can be.
 - **`show` / `try`.** Highlight color literals in any file
   (`claude-colorizer show styles.css`), or preview a color as your terminal
   background (`claude-colorizer try '#1e1e2e'`).
@@ -143,6 +147,9 @@ Tab colors in Kitty and WezTerm need one extra piece of terminal config. See
   refuses to touch it.
 - **Your existing statusline is kept:** it's chained, so its output renders
   on the line above the swatches. `uninstall` puts it back exactly.
+- **Refresh:** the statusline gets `"refreshInterval": 2`. Permission prompts
+  and idle notifications don't make Claude Code re-run the statusline, so
+  without it the state indicator would lag until the next message.
 - **Hooks:** they are appended next to any hooks you already have, never
   replacing them. Running `install` again doesn't add duplicates.
 - **Key order:** keys in `settings.json` are rewritten in alphabetical order.
@@ -236,11 +243,18 @@ to print the effective config.
     "max": 12,
     "sources": ["assistant", "tools", "user"],
     "label": "hex",
+    "indicator": "label",
     "prefix": "🎨 ",
     "empty": ""
   }
 }
 ```
+
+`statusline.indicator` controls the state indicator: `"label"` (default,
+`● working`), `"dot"` (just `●`), or `"none"`. The dot uses the state's `tab`
+color. Hooks record each session's state in a small file under your cache
+directory (`~/.cache/claude-colorizer/sessions` on Linux, or
+`$CLAUDE_COLORIZER_STATE_DIR`), which is deleted when the session ends.
 
 The default background tints assume a dark theme. On a light theme, set
 light `background` values, or set `"background": false`.

@@ -44,6 +44,9 @@ func TestInstallUninstallRoundTrip(t *testing.T) {
 
 	s := readJSON(t, settings)
 	cmd := s["statusLine"].(map[string]any)["command"].(string)
+	if ri := s["statusLine"].(map[string]any)["refreshInterval"]; ri != float64(refreshInterval) {
+		t.Errorf("statusLine refreshInterval = %v, want %d", ri, refreshInterval)
+	}
 	if want := `'/opt/my bin/claude-colorizer' statusline -- sh -c '~/bin/my status.sh'`; cmd != want {
 		t.Errorf("statusLine = %q, want %q", cmd, want)
 	}
