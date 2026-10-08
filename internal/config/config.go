@@ -39,6 +39,7 @@ type Config struct {
 	Tab        *bool            `json:"tab,omitempty"`
 	Background *bool            `json:"background,omitempty"`
 	Title      *bool            `json:"title,omitempty"`
+	Status     *bool            `json:"status,omitempty"` // OSC 7501 program status
 	States     map[string]Style `json:"states,omitempty"`
 	Statusline Statusline       `json:"statusline"`
 }
@@ -46,6 +47,7 @@ type Config struct {
 func (c Config) TabEnabled() bool        { return c.Tab == nil || *c.Tab }
 func (c Config) BackgroundEnabled() bool { return c.Background == nil || *c.Background }
 func (c Config) TitleEnabled() bool      { return c.Title == nil || *c.Title }
+func (c Config) StatusEnabled() bool     { return c.Status == nil || *c.Status }
 
 // Default tints assume a dark theme; override background colors for light ones.
 func Default() Config {
@@ -106,6 +108,9 @@ func merge(base, user Config) Config {
 	}
 	if user.Title != nil {
 		base.Title = user.Title
+	}
+	if user.Status != nil {
+		base.Status = user.Status
 	}
 	for name, u := range user.States {
 		b := base.States[name]

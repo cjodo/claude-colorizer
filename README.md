@@ -35,6 +35,16 @@ how to report results or add a terminal.
 
 Statusline swatches use 24-bit SGR colors, which work in all of them.
 
+**Program status (OSC 7501).** Every state change is also reported with the
+[Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status),
+which is not tied to any terminal. Terminals that implement it (Ghostty,
+through libghostty) can show the session state natively, with no glyph or
+config. The others ignore it. The report carries `app=claude-code`, the title
+`Claude Code · <dir>`, and for permission prompts `state=blocked:kind=permission`
+plus Claude's notification message. Inside tmux it goes out through
+passthrough, so it needs `set -g allow-passthrough on` like tab colors do. To turn
+it off, set `"status": false`.
+
 Each terminal is a driver implementing `terminal.Terminal`
 (`internal/terminal/drivers.go`). Detection reads environment variables
 (`internal/terminal/detect.go`). Inside tmux it asks tmux which terminal
@@ -161,13 +171,13 @@ at the start of the window title. See the Title fallback column in
 
 ### Hook events behind each state
 
-| Hook event                          | State     | Default tab / tint      |
-|-------------------------------------|-----------|-------------------------|
-| `UserPromptSubmit`, `PostToolUse`   | working   | `#3b82f6` / `#151b2b`   |
-| `Notification` (permission, idle)   | attention | `#f59e0b` / `#2a2112`   |
-| `Stop`                              | done      | `#22c55e` / `#13231a`   |
-| `StopFailure`, `PostToolUseFailure` | error     | `#ef4444` / `#2b1515`   |
-| `SessionStart`, `SessionEnd`        | reset     | terminal defaults       |
+| Hook event                          | State     | Default tab / tint      | OSC 7501 `state` |
+|-------------------------------------|-----------|-------------------------|------------------|
+| `UserPromptSubmit`, `PostToolUse`   | working   | `#3b82f6` / `#151b2b`   | `working`        |
+| `Notification` (permission, idle)   | attention | `#f59e0b` / `#2a2112`   | `blocked`        |
+| `Stop`                              | done      | `#22c55e` / `#13231a`   | `done`           |
+| `StopFailure`, `PostToolUseFailure` | error     | `#ef4444` / `#2b1515`   | `error`          |
+| `SessionStart`, `SessionEnd`        | reset     | terminal defaults       | `clear`          |
 
 To change any color or glyph, see [Configuration](#configuration).
 
@@ -182,6 +192,7 @@ to print the effective config.
   "tab": true,
   "background": true,
   "title": true,
+  "status": true,
   "states": {
     "working": { "tab": "#7c3aed", "background": "#1a1426" },
     "done":    { "background": "#eef9f0" }

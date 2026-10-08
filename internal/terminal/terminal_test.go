@@ -138,3 +138,44 @@ func TestMulti(t *testing.T) {
 		t.Errorf("SetBackground = %q, want a single OSC 11 %q", got, want)
 	}
 }
+
+func TestProgramStatus(t *testing.T) {
+	cases := []struct {
+		name string
+		s    Status
+		want string
+	}{
+		{"clear drops other keys", Status{State: StatusClear, App: "x", Title: "t"}, "\x1b]7501;state=clear\x1b\\"},
+		{"working", Status{State: StatusWorking, App: "claude-code", Title: "Claude Code"},
+			"\x1b]7501;state=working:app=claude-code:title=Q2xhdWRlIENvZGU=\x1b\\"},
+		{"blocked kind+msg", Status{State: StatusBlocked, Kind: "permission", Msg: "ok?"},
+			"\x1b]7501;state=blocked:kind=permission:msg=b2s/\x1b\\"},
+		{"kind only with blocked", Status{State: StatusDone, Kind: "permission"}, "\x1b]7501;state=done\x1b\\"},
+		{"msg made one line", Status{State: StatusError, Msg: "a\nb"}, "\x1b]7501;state=error:msg=YSBi\x1b\\"},
+	}
+	for _, tc := range cases {
+		if got := string(ProgramStatus(tc.s)); got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+
+	// Over-long text is truncated on a rune boundary, not dropped.
+	long := strings.Repeat("é", statusTitleMax) // 2 bytes per rune
+	if got := string(ProgramStatus(Status{State: StatusIdle, Title: long})); !strings.Contains(got, ":title=") || len(got) > 4096 {
+		t.Errorf("long title: %q", got)
+	}
+	if got := statusText(long, 5); got != "w6nDqQ==" { // "éé"
+		t.Errorf("truncate: got %q", got)
+	}
+}
+
+// OSC 7501 isn't understood by tmux, so it must pass through to the outer terminal.
+func TestProgramStatusTmux(t *testing.T) {
+	var buf bytes.Buffer
+	if err := (Writer{W: &buf, Tmux: true}).Write(ProgramStatus(Status{State: StatusDone})); err != nil {
+		t.Fatal(err)
+	}
+	if want := "\x1bPtmux;\x1b\x1b]7501;state=done\x1b\x1b\\\x1b\\"; buf.String() != want {
+		t.Errorf("got %q, want %q", buf.String(), want)
+	}
+}
