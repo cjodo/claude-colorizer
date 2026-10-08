@@ -199,8 +199,9 @@ deletes the binary.
 
 ### Alternative: as a Claude Code plugin
 
-The repo is also a plugin marketplace. The plugin only provides the hooks,
-because plugins can't set a statusline:
+The repo is also a plugin marketplace. The plugin provides the hooks and
+inline highlighting (below), but not the statusline, because plugins can't
+set one:
 
 ```
 /plugin marketplace add /path/to/claude-colorizer
@@ -210,6 +211,39 @@ because plugins can't set a statusline:
 Then run `claude-colorizer install --no-hooks` to add the statusline without
 registering the hooks twice. To try it for a single session without installing,
 run `claude --plugin-dir /path/to/claude-colorizer`.
+
+### Inline highlighting
+
+Inline highlighting draws each color literal in Claude's replies on its own
+color, like nvim-colorizer does in a buffer. Replies without colors are drawn
+as usual. In a reply with colors, lines holding a color are drawn as plain
+text, so their bold and inline code markers are dropped.
+
+**It only works when the repo is loaded as a plugin.** The highlighter is a
+function-hooks module (`hooks/colorize.tsx`, with `hooks/colors.ts` porting
+`internal/colors`), and Claude Code loads it only from the plugin's
+`hooks/hooks.json`. `make install` writes plain command hooks to
+`settings.json`, which can't load modules, so with `make install` alone
+you get state colors and swatches but no inline highlighting.
+
+To turn it on, load the plugin in either of these ways:
+
+- For one session: `claude --plugin-dir /path/to/claude-colorizer`.
+- Permanently: install it as shown in
+  [Alternative: as a Claude Code plugin](#alternative-as-a-claude-code-plugin).
+  Installed plugins run from a cached copy, so reinstall after changing
+  `hooks/`.
+
+If you already ran `make install`, switch its hooks over to the plugin so
+each event doesn't fire twice:
+
+```sh
+claude-colorizer uninstall && claude-colorizer install --no-hooks
+```
+
+Highlighting starts in the next session. To check that it loaded, ask Claude
+to print a hex color such as `#ff5733`; it should appear on an orange
+background. Run its tests with `claude plugin test .`.
 
 ## What the colors mean
 
