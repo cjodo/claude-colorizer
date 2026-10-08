@@ -129,7 +129,28 @@ Then run `claude-colorizer install --no-hooks` to add the statusline without
 registering the hooks twice. To try it for a single session without installing,
 run `claude --plugin-dir /path/to/claude-colorizer`.
 
-## State mapping
+## What the colors mean
+
+The tab, background tint and title glyph show what the session is doing, so
+you can tell from another tab or window whether Claude needs you.
+
+| Color         | Glyph | State     | Meaning                                                    |
+|---------------|-------|-----------|------------------------------------------------------------|
+| Blue          | 🔵    | working   | Claude is working: thinking, writing, running tools. Nothing for you to do yet. |
+| Amber         | 🟡    | attention | Claude is waiting on you: a permission prompt, or it has sat idle waiting for input. |
+| Green         | 🟢    | done      | Claude finished its turn. Read the reply and send the next prompt. |
+| Red           | 🔴    | error     | Something failed: the API request errored, or a tool call failed. |
+| Your defaults | none  | reset     | The session just started or ended.                         |
+
+Red after a failed tool call doesn't always mean the turn is over. Claude
+often recovers, and the color goes back to blue on its next successful tool
+call. Red after an API error stays until you send another prompt.
+
+The glyph is a fallback for terminals that can't color their tabs. It appears
+at the start of the window title. See the Title fallback column in
+[Terminal support](#terminal-support).
+
+### Hook events behind each state
 
 | Hook event                          | State     | Default tab / tint      |
 |-------------------------------------|-----------|-------------------------|
@@ -138,6 +159,8 @@ run `claude --plugin-dir /path/to/claude-colorizer`.
 | `Stop`                              | done      | `#22c55e` / `#13231a`   |
 | `StopFailure`, `PostToolUseFailure` | error     | `#ef4444` / `#2b1515`   |
 | `SessionStart`, `SessionEnd`        | reset     | terminal defaults       |
+
+To change any color or glyph, see [Configuration](#configuration).
 
 ## Configuration
 
