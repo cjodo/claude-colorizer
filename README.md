@@ -7,7 +7,7 @@ with no dependencies.
 - **Statusline swatches.** Colors mentioned in the conversation (Claude's
   replies, code it writes, your prompts) appear as live swatches under the
   prompt. It reads `#rgb`, `#rrggbb(aa)`, `rgb()/rgba()`, `hsl()/hsla()` and
-  `oklch()`.
+  `oklch()`. Turn them off with `"statusline": {"swatches": false}`.
 - **State colors.** The terminal tab and background tint change as the
   session moves through *idle → working → needs you → done / error*.
 - **State indicator.** The current state also appears as a colored dot at
@@ -117,6 +117,29 @@ tmux set -p allow-passthrough all
 
 Check the global value with `tmux show -gv allow-passthrough`, and the
 detected terminal with `claude-colorizer detect` (it prints `tmux: yes`).
+
+**Background opacity.** tmux paints a tinted pane with an explicit color in
+every cell, and terminals normally draw explicit cell colors fully opaque, so
+a translucent terminal turns solid while the tint is on. There are two fixes:
+
+- **Keep the tint on Claude's pane** and have the terminal apply its opacity
+  to explicit cell colors too. In Ghostty 1.2+, add this to its config:
+
+  ```
+  background-opacity-cells = true
+  ```
+
+  Other explicitly colored cells (the tmux status bar, editor themes) then
+  turn translucent as well.
+
+- **Tint the whole terminal instead**, for terminals without such an option:
+
+  ```json
+  { "tmuxBackground": "terminal" }
+  ```
+
+  This needs passthrough enabled, and the tint covers every pane in the
+  window rather than just Claude's. The default is `"pane"`.
 
 ## Install
 
@@ -235,11 +258,13 @@ to print the effective config.
   "background": true,
   "title": true,
   "status": true,
+  "tmuxBackground": "pane",
   "states": {
     "working": { "tab": "#7c3aed", "background": "#1a1426" },
     "done":    { "background": "#eef9f0" }
   },
   "statusline": {
+    "swatches": true,
     "max": 12,
     "sources": ["assistant", "tools", "user"],
     "label": "hex",
@@ -249,6 +274,15 @@ to print the effective config.
   }
 }
 ```
+
+`tmuxBackground` only matters inside tmux: `"pane"` (default) tints just
+Claude's pane, `"terminal"` tints the outer terminal and keeps its background
+opacity (see [tmux](#tmux)).
+
+`statusline.swatches` turns the color swatches on (default) or off. With
+`false`, the transcript isn't read and the statusline shows only the state
+indicator. The other swatch keys (`max`, `sources`, `label`, `prefix`,
+`empty`) then have no effect.
 
 `statusline.indicator` controls the state indicator: `"label"` (default,
 `● working`), `"dot"` (just `●`), or `"none"`. The dot uses the state's `tab`

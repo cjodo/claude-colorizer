@@ -29,27 +29,37 @@ type Style struct {
 }
 
 type Statusline struct {
-	Max       int      `json:"max"`       // max swatches shown
-	Sources   []string `json:"sources"`   // any of assistant, tools, user
-	Label     string   `json:"label"`     // "hex", "original" or "none"
-	Indicator string   `json:"indicator"` // session state: "label", "dot" or "none"
-	Prefix    string   `json:"prefix"`    // printed before the swatches
-	Empty     string   `json:"empty"`     // printed when no colors were found
+	Swatches  *bool    `json:"swatches,omitempty"` // color swatches; nil means on
+	Max       int      `json:"max"`                // max swatches shown
+	Sources   []string `json:"sources"`            // any of assistant, tools, user
+	Label     string   `json:"label"`              // "hex", "original" or "none"
+	Indicator string   `json:"indicator"`          // session state: "label", "dot" or "none"
+	Prefix    string   `json:"prefix"`             // printed before the swatches
+	Empty     string   `json:"empty"`              // printed when no colors were found
 }
 
 type Config struct {
-	Tab        *bool            `json:"tab,omitempty"`
-	Background *bool            `json:"background,omitempty"`
-	Title      *bool            `json:"title,omitempty"`
-	Status     *bool            `json:"status,omitempty"` // OSC 7501 program status
-	States     map[string]Style `json:"states,omitempty"`
-	Statusline Statusline       `json:"statusline"`
+	Tab        *bool `json:"tab,omitempty"`
+	Background *bool `json:"background,omitempty"`
+	Title      *bool `json:"title,omitempty"`
+	Status     *bool `json:"status,omitempty"` // OSC 7501 program status
+	// TmuxBackground picks who applies the background tint inside tmux:
+	// "pane" (tmux, per pane) or "terminal" (passed through to the outer
+	// terminal, which keeps its background opacity).
+	TmuxBackground string           `json:"tmuxBackground,omitempty"`
+	States         map[string]Style `json:"states,omitempty"`
+	Statusline     Statusline       `json:"statusline"`
 }
 
 func (c Config) TabEnabled() bool        { return c.Tab == nil || *c.Tab }
 func (c Config) BackgroundEnabled() bool { return c.Background == nil || *c.Background }
 func (c Config) TitleEnabled() bool      { return c.Title == nil || *c.Title }
 func (c Config) StatusEnabled() bool     { return c.Status == nil || *c.Status }
+
+// TmuxBackgroundPassthrough reports whether background sequences bypass tmux.
+func (c Config) TmuxBackgroundPassthrough() bool { return c.TmuxBackground == "terminal" }
+
+func (s Statusline) SwatchesEnabled() bool { return s.Swatches == nil || *s.Swatches }
 
 // Default tints assume a dark theme; override background colors for light ones.
 func Default() Config {
@@ -116,6 +126,9 @@ func merge(base, user Config) Config {
 	if user.Status != nil {
 		base.Status = user.Status
 	}
+	if user.TmuxBackground != "" {
+		base.TmuxBackground = user.TmuxBackground
+	}
 	for name, u := range user.States {
 		b := base.States[name]
 		if u.Tab != "" {
@@ -130,6 +143,9 @@ func merge(base, user Config) Config {
 		base.States[name] = b
 	}
 	s, u := &base.Statusline, user.Statusline
+	if u.Swatches != nil {
+		s.Swatches = u.Swatches
+	}
 	if u.Max > 0 {
 		s.Max = u.Max
 	}

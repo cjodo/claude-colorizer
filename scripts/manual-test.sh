@@ -5,7 +5,8 @@
 #
 #   scripts/manual-test.sh hooks    hook events -> session state -> statusline (automatic, silent)
 #   scripts/manual-test.sh states   cycle every state on this terminal (watch it)
-#   scripts/manual-test.sh tmux     passthrough setup, raw OSC 7501, background window
+#   scripts/manual-test.sh tmux     passthrough setup, raw OSC 7501, background window,
+#                                   tmuxBackground=terminal
 #   scripts/manual-test.sh all      all of the above
 #
 # DELAY sets the seconds each state is shown (default 2). CLAUDE_COLORIZER_CONFIG
@@ -70,6 +71,15 @@ check_hooks() {
     [ "$got" = "${mode#*:}" ] && ok "indicator ${mode%%:*}: '$got'" || bad "indicator ${mode%%:*}: '$got', want '${mode#*:}'"
   done
 
+  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"try #3b82f6"}]}}' >"$work/t.jsonl"
+  for mode in true:"● working     #3b82f6" false:"● working"; do
+    printf '{"tab":false,"background":false,"title":false,"status":false,"statusline":{"swatches":%s}}' "${mode%%:*}" >"$work/mode.json"
+    got="$(printf '{"session_id":"%s","transcript_path":"%s"}' "$sid" "$work/t.jsonl" |
+      CLAUDE_COLORIZER_CONFIG="$work/mode.json" CLAUDE_COLORIZER_STATE_DIR="$dir" "$bin" statusline |
+      sed "s/${esc}\[[0-9;]*m//g")"
+    [ "$got" = "${mode#*:}" ] && ok "swatches ${mode%%:*}: '$got'" || bad "swatches ${mode%%:*}: '$got', want '${mode#*:}'"
+  done
+
   echo bogus >"$dir/$sid"
   [ -z "$(statusline)" ] && ok "unknown state shows nothing" || bad "unknown state rendered '$(statusline)'"
 
@@ -118,6 +128,13 @@ check_tmux() {
   tmux new-window -d "'$bin' set attention; sleep $((delay * 2)); '$bin' reset"
   sleep $((delay * 2 + 1))
   note "it should have reached the terminal although that window was never visible"
+
+  printf '{"tab":false,"title":false,"status":false,"tmuxBackground":"terminal"}' >"$work/opacity.json"
+  note "'working' tint with tmuxBackground=terminal for ${delay}s"
+  CLAUDE_COLORIZER_CONFIG="$work/opacity.json" "$bin" set working
+  sleep "$delay"
+  CLAUDE_COLORIZER_CONFIG="$work/opacity.json" "$bin" reset
+  note "the whole window should have been tinted, keeping any background opacity"
 }
 
 case "${1:-all}" in
@@ -125,7 +142,7 @@ case "${1:-all}" in
   states) check_states ;;
   tmux)   check_tmux ;;
   all)    check_hooks; check_states; check_tmux ;;
-  *)      sed -n '6,9p' "$0" | sed 's/^# //' >&2; exit 2 ;;
+  *)      sed -n '6,10p' "$0" | sed 's/^# //' >&2; exit 2 ;;
 esac
 
 if [ "$fails" -gt 0 ]; then

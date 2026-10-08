@@ -1,6 +1,6 @@
 // Command claude-colorizer visualizes colors for Claude Code sessions:
 //
-//   - statusline: swatches for colors mentioned in the conversation
+//   - statusline: session state and swatches for colors mentioned in the conversation
 //   - hook:       recolors the terminal tab/background by session state
 //   - show:       highlights color literals in text, like nvim-colorizer
 package main
@@ -28,7 +28,8 @@ import (
 const usage = `claude-colorizer — color visualization for Claude Code
 
 Usage:
-  claude-colorizer statusline [-- CMD...]  Claude Code statusLine: swatches of recent colors.
+  claude-colorizer statusline [-- CMD...]  Claude Code statusLine: state indicator and swatches
+                                           of recent colors (statusline.swatches).
                                            With CMD, its output is shown on the line above.
   claude-colorizer hook                    Claude Code hook handler (reads event JSON on stdin).
   claude-colorizer show [FILE...]          Highlight color literals in files or stdin.
@@ -48,6 +49,24 @@ Environment:
   CLAUDE_COLORIZER_STATE_DIR per-session state for the statusline indicator
                              (default: user cache dir/claude-colorizer/sessions)
   CLAUDE_COLORIZER_DEBUG     print hook errors to stderr
+
+Config (~/.config/claude-colorizer/config.json, every key optional;
+` + "`claude-colorizer config`" + ` prints the effective values):
+  tab                        true|false: tab color (default true)
+  background                 true|false: background tint (default true)
+  title                      true|false: title glyph where tabs can't be colored (default true)
+  status                     true|false: OSC 7501 program status reports (default true)
+  tmuxBackground             inside tmux, where the tint goes: pane (default) or terminal
+                             (the outer terminal, which keeps its background opacity)
+  states.STATE               {"tab", "background", "glyph"} per state: idle, working,
+                             attention, done, error
+  statusline.swatches        true|false: color swatches (default true)
+  statusline.max             max swatches shown (default 12)
+  statusline.sources         any of assistant, tools, user (default all)
+  statusline.label           swatch label: hex (default), original or none
+  statusline.indicator       session state: label (default), dot or none
+  statusline.prefix          text printed before the swatches
+  statusline.empty           text printed when no colors were found
 `
 
 func main() {
@@ -77,7 +96,7 @@ func main() {
 		cwd, _ := os.Getwd()
 		err = applyState(cfg, args[0], hookInput{Cwd: cwd})
 	case "try":
-		err = runTry(args)
+		err = runTry(cfg, args)
 	case "reset":
 		err = applyState(cfg, "", hookInput{})
 	case "detect":
@@ -132,15 +151,10 @@ func runStatusline(cfg config.Config, args []string) error {
 
 	var si statusInput
 	_ = json.Unmarshal(in, &si)
-	var matches []colors.Match
-	if si.TranscriptPath != "" {
-		var sources []transcript.Source
-		for _, s := range cfg.Statusline.Sources {
-			sources = append(sources, transcript.Source(s))
-		}
-		matches, _ = transcript.RecentColors(si.TranscriptPath, sources, cfg.Statusline.Max)
+	var line string
+	if cfg.Statusline.SwatchesEnabled() {
+		line = swatchLine(cfg.Statusline, si.TranscriptPath)
 	}
-	line := renderSwatches(cfg.Statusline, matches)
 	if ind := renderIndicator(cfg, session.Load(si.SessionID)); ind != "" {
 		if line != "" {
 			ind += "  "
@@ -149,6 +163,19 @@ func runStatusline(cfg config.Config, args []string) error {
 	}
 	fmt.Println(line)
 	return nil
+}
+
+// swatchLine renders the colors recently mentioned in the transcript.
+func swatchLine(sc config.Statusline, transcriptPath string) string {
+	var matches []colors.Match
+	if transcriptPath != "" {
+		var sources []transcript.Source
+		for _, s := range sc.Sources {
+			sources = append(sources, transcript.Source(s))
+		}
+		matches, _ = transcript.RecentColors(transcriptPath, sources, sc.Max)
+	}
+	return renderSwatches(sc, matches)
 }
 
 // renderIndicator shows the session's current state as a dot in its tab
@@ -273,7 +300,7 @@ func applyState(cfg config.Config, state string, in hookInput) error {
 			seqs = append(seqs, term.SetTitle(title(style.Glyph, cwd)))
 		}
 	}
-	return writeTTY(seqs...)
+	return writeTTY(cfg, seqs...)
 }
 
 // programStatus maps a state to an OSC 7501 report, so terminals that speak
@@ -316,13 +343,13 @@ func title(glyph, cwd string) string {
 	return t
 }
 
-func writeTTY(seqs ...[]byte) error {
+func writeTTY(cfg config.Config, seqs ...[]byte) error {
 	tty, err := terminal.OpenTTY()
 	if err != nil {
 		return err
 	}
 	defer tty.Close()
-	return terminal.Writer{W: tty, Tmux: terminal.InTmux(os.Getenv)}.Write(seqs...)
+	return terminal.Writer{W: tty, Tmux: terminal.InTmux(os.Getenv), PassBackground: cfg.TmuxBackgroundPassthrough()}.Write(seqs...)
 }
 
 // ---------------------------------------------------------------------------
@@ -422,7 +449,7 @@ func highlight(w io.Writer, r io.Reader) error {
 	return sc.Err()
 }
 
-func runTry(args []string) error {
+func runTry(cfg config.Config, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: try COLOR (e.g. '#1e1e2e' or 'oklch(25%% 0.03 270)')")
 	}
@@ -440,7 +467,7 @@ func runTry(args []string) error {
 		return fmt.Errorf("%s cannot set the background color", term.Name())
 	}
 	fmt.Printf("background → %s  (run `claude-colorizer reset` to restore)\n", ms[0].Color.Hex())
-	return writeTTY(seq)
+	return writeTTY(cfg, seq)
 }
 
 func runDetectName() { fmt.Println(terminal.Detect(os.Getenv).Name()) }
