@@ -19,3 +19,12 @@ func TestSwatchesEnabled(t *testing.T) {
 		}
 	}
 }
+
+func TestTmuxBackgroundPassthrough(t *testing.T) {
+	for user, want := range map[string]bool{"": false, "pane": false, "terminal": true} {
+		cfg := merge(Default(), Config{TmuxBackground: user})
+		if got := cfg.TmuxBackgroundPassthrough(); got != want {
+			t.Errorf("tmuxBackground=%q: TmuxBackgroundPassthrough() = %v, want %v", user, got, want)
+		}
+	}
+}

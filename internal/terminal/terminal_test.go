@@ -97,6 +97,22 @@ func TestTmuxWrap(t *testing.T) {
 	}
 }
 
+// With PassBackground, OSC 11/111 go to the outer terminal so it keeps its
+// background opacity; a reset also clears tmux's pane background.
+func TestTmuxPassBackground(t *testing.T) {
+	var buf bytes.Buffer
+	w := Writer{W: &buf, Tmux: true, PassBackground: true}
+	if err := w.Write(osc("11;#000000"), osc("111"), osc("2;title")); err != nil {
+		t.Fatal(err)
+	}
+	want := "\x1bPtmux;\x1b\x1b]11;#000000\x1b\x1b\\\x1b\\" +
+		"\x1b]111\x1b\\" + "\x1bPtmux;\x1b\x1b]111\x1b\x1b\\\x1b\\" +
+		"\x1b]2;title\x1b\\"
+	if buf.String() != want {
+		t.Errorf("got %q, want %q", buf.String(), want)
+	}
+}
+
 // Inside tmux, the attached client ttys win over stale environment variables.
 func TestDetectTmuxClients(t *testing.T) {
 	defer func(f func(string) []string) { tmuxClients = f }(tmuxClients)
