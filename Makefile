@@ -1,4 +1,4 @@
-.PHONY: build install uninstall test cross clean
+.PHONY: build install uninstall test manual cross clean
 
 GOBIN_DIR := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
 
@@ -17,6 +17,10 @@ uninstall:
 test:
 	go vet ./...
 	go test ./...
+
+# Checks what reaches the terminal; see scripts/manual-test.sh. Pass e.g. MANUAL=tmux.
+manual:
+	scripts/manual-test.sh $(MANUAL)
 
 cross:
 	GOOS=linux   GOARCH=amd64 go build -o dist/claude-colorizer-linux-amd64       ./cmd/claude-colorizer

@@ -21,11 +21,22 @@ You need Go 1.22+ and Claude Code.
 ```sh
 git clone <this repo> && cd claude-colorizer
 make test      # go vet + unit tests
+make manual    # scripts/manual-test.sh: what actually reaches the terminal
 make build     # binary in bin/
 make install   # go install + register statusline and hooks
 ```
 
 ## Testing on your terminal
+
+`scripts/manual-test.sh` runs most of this for you, using a binary built
+from your working tree:
+
+| Command                          | What it does                                                         |
+|----------------------------------|----------------------------------------------------------------------|
+| `scripts/manual-test.sh hooks`   | Feeds every hook event through and checks the saved session state and the statusline indicator. Automatic and silent: pass/fail only. |
+| `scripts/manual-test.sh states`  | Stage 1 below: `detect`, then each state for `DELAY` seconds, then `reset`. Watch the terminal. |
+| `scripts/manual-test.sh tmux`    | Stage 2 below: checks the running server's `allow-passthrough`, sends a raw OSC 7501 report, then one from a hidden window. |
+| `scripts/manual-test.sh`         | All three.                                                           |
 
 Test in two stages. Stage 1 checks the driver by hand. Stage 2 checks the
 hooks inside a real Claude Code session. If stage 1 fails, the driver or

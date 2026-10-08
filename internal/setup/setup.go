@@ -27,6 +27,11 @@ var hookEvents = []struct {
 	{"SessionEnd", false},
 }
 
+// refreshInterval (seconds) re-runs the statusline between conversation
+// events, so the state indicator catches permission prompts and idle
+// notifications, which don't trigger a statusline update on their own.
+const refreshInterval = 2
+
 // marker identifies entries we own, regardless of the binary's path.
 const marker = "claude-colorizer"
 
@@ -65,7 +70,12 @@ func Install(o Options) ([]string, error) {
 		prevCmd, _ := prev["command"].(string)
 		switch {
 		case strings.Contains(prevCmd, marker):
-			changes = append(changes, "statusLine: already installed")
+			if _, ok := prev["refreshInterval"]; !ok {
+				prev["refreshInterval"] = refreshInterval
+				changes = append(changes, "statusLine: added refreshInterval")
+			} else {
+				changes = append(changes, "statusLine: already installed")
+			}
 		default:
 			if prevCmd != "" {
 				// Keep the user's statusline: it renders above the swatches.
@@ -79,7 +89,7 @@ func Install(o Options) ([]string, error) {
 			} else {
 				changes = append(changes, "statusLine: added")
 			}
-			s["statusLine"] = map[string]any{"type": "command", "command": cmd, "padding": 0}
+			s["statusLine"] = map[string]any{"type": "command", "command": cmd, "padding": 0, "refreshInterval": refreshInterval}
 		}
 	}
 
