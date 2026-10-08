@@ -70,6 +70,15 @@ check_hooks() {
     [ "$got" = "${mode#*:}" ] && ok "indicator ${mode%%:*}: '$got'" || bad "indicator ${mode%%:*}: '$got', want '${mode#*:}'"
   done
 
+  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"try #3b82f6"}]}}' >"$work/t.jsonl"
+  for mode in true:"● working     #3b82f6" false:"● working"; do
+    printf '{"tab":false,"background":false,"title":false,"status":false,"statusline":{"swatches":%s}}' "${mode%%:*}" >"$work/mode.json"
+    got="$(printf '{"session_id":"%s","transcript_path":"%s"}' "$sid" "$work/t.jsonl" |
+      CLAUDE_COLORIZER_CONFIG="$work/mode.json" CLAUDE_COLORIZER_STATE_DIR="$dir" "$bin" statusline |
+      sed "s/${esc}\[[0-9;]*m//g")"
+    [ "$got" = "${mode#*:}" ] && ok "swatches ${mode%%:*}: '$got'" || bad "swatches ${mode%%:*}: '$got', want '${mode#*:}'"
+  done
+
   echo bogus >"$dir/$sid"
   [ -z "$(statusline)" ] && ok "unknown state shows nothing" || bad "unknown state rendered '$(statusline)'"
 
