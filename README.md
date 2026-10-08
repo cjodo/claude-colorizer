@@ -118,6 +118,19 @@ tmux set -p allow-passthrough all
 Check the global value with `tmux show -gv allow-passthrough`, and the
 detected terminal with `claude-colorizer detect` (it prints `tmux: yes`).
 
+**Background opacity.** tmux paints a tinted pane with an explicit color in
+every cell, and terminals draw explicit cell colors fully opaque, so a
+translucent terminal (`background-opacity` in Ghostty, Kitty, Alacritty, …)
+turns solid while the tint is on. To keep the opacity, send the tint to the
+outer terminal instead:
+
+```json
+{ "tmuxBackground": "terminal" }
+```
+
+This needs passthrough enabled, and the tint then covers the whole terminal
+window rather than just Claude's pane. The default is `"pane"`.
+
 ## Install
 
 You need Go 1.22+ and Claude Code.
@@ -235,6 +248,7 @@ to print the effective config.
   "background": true,
   "title": true,
   "status": true,
+  "tmuxBackground": "pane",
   "states": {
     "working": { "tab": "#7c3aed", "background": "#1a1426" },
     "done":    { "background": "#eef9f0" }
@@ -250,6 +264,10 @@ to print the effective config.
   }
 }
 ```
+
+`tmuxBackground` only matters inside tmux: `"pane"` (default) tints just
+Claude's pane, `"terminal"` tints the outer terminal and keeps its background
+opacity (see [tmux](#tmux)).
 
 `statusline.swatches` turns the color swatches on (default) or off. With
 `false`, the transcript isn't read and the statusline shows only the state

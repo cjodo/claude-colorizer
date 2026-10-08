@@ -35,7 +35,7 @@ from your working tree:
 |----------------------------------|----------------------------------------------------------------------|
 | `scripts/manual-test.sh hooks`   | Feeds every hook event through and checks the saved session state, the statusline indicator and the `swatches` toggle. Automatic and silent: pass/fail only. |
 | `scripts/manual-test.sh states`  | Stage 1 below: `detect`, then each state for `DELAY` seconds, then `reset`. Watch the terminal. |
-| `scripts/manual-test.sh tmux`    | Stage 2 below: checks the running server's `allow-passthrough`, sends a raw OSC 7501 report, then one from a hidden window. |
+| `scripts/manual-test.sh tmux`    | Stage 2 below: checks the running server's `allow-passthrough`, sends a raw OSC 7501 report, then one from a hidden window, then a tint with `tmuxBackground: "terminal"`. |
 | `scripts/manual-test.sh`         | All three.                                                           |
 
 Test in two stages. Stage 1 checks the driver by hand. Stage 2 checks the
@@ -79,6 +79,11 @@ terminal. The background should change for that pane only. Tab colors for
 kitty, iTerm2 and WezTerm, and OSC 7501 status reports, also need
 `tmux set -g allow-passthrough all` (see [tmux](README.md#tmux)).
 
+If your terminal has a translucent background, the tinted pane turns opaque,
+because tmux paints its cells with an explicit color. Set
+`"tmuxBackground": "terminal"` and repeat: the whole window should be tinted
+and keep its opacity, and `reset` should bring back both.
+
 ### 3. A real Claude Code session
 
 ```sh
@@ -104,6 +109,7 @@ CLAUDE_COLORIZER_DEBUG=1 claude
 | `detect` says `generic`                        | The terminal's env var didn't make it through (SSH, `sudo`, tmux)  |
 | Works by hand, not inside Claude Code          | The hook can't reach the TTY; check the debug output               |
 | Colors stay after quitting                     | `SessionEnd` didn't run (the session was killed or crashed)        |
+| Tint is opaque inside tmux                     | tmux paints the pane itself; set `"tmuxBackground": "terminal"`    |
 | Swatches look washed out or wrong              | No truecolor; `echo $COLORTERM` should print `truecolor`           |
 
 ## Reporting a terminal
