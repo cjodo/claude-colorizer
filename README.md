@@ -18,6 +18,73 @@ with no dependencies.
   (`claude-colorizer show styles.css`), or preview a color as your terminal
   background (`claude-colorizer try '#1e1e2e'`).
 
+## Quick start
+
+This is the recommended setup: it turns on everything (state colors,
+statusline swatches and inline highlighting). You need Go 1.22+ and Claude
+Code.
+
+1. **Clone the repo** somewhere permanent. The plugin is installed from this
+   directory, so don't delete it afterwards.
+
+   ```sh
+   git clone https://github.com/cjodo/claude-colorizer ~/repos/claude-colorizer
+   cd ~/repos/claude-colorizer
+   ```
+
+2. **Install the binary and the statusline.** `--no-hooks` leaves the hooks
+   to the plugin (step 4), so each event doesn't fire twice.
+
+   ```sh
+   make install ARGS="--no-hooks"
+   ```
+
+3. **Add the repo as a plugin marketplace.** Inside Claude Code, run:
+
+   ```
+   /plugin marketplace add ~/repos/claude-colorizer
+   ```
+
+4. **Install the plugin from that marketplace.** Use `name@marketplace`, not
+   the path: `/plugin install ~/repos/claude-colorizer` fails with
+   `Marketplace "..." not found`.
+
+   ```
+   /plugin install claude-colorizer@claude-colorizer
+   ```
+
+   Check it with `/plugin list`: `claude-colorizer@claude-colorizer` should
+   be listed as enabled.
+
+5. **Restart Claude Code.** `/reload-plugins` picks up the plugin, but the
+   statusline and inline highlighting start with the next session.
+
+6. **Set up your terminal, if needed.** Ghostty, iTerm2, Alacritty and
+   Windows Terminal need nothing. Kitty and WezTerm need one line of config
+   for tab colors, and tmux needs passthrough. See
+   [Terminal support](#terminal-support) and [tmux](#tmux). Run
+   `claude-colorizer detect` to see which terminal was detected.
+
+7. **Try it.** Ask Claude to "emit some colors: just hex values". You should
+   see:
+   - each hex value in the reply drawn on its own color (inline highlighting),
+   - swatches for those colors under the prompt (statusline),
+   - the tab or background turn blue while Claude works and green when it's
+     done (state colors), with `● working` / `● done` at the start of the
+     statusline.
+
+If something is missing, check the table below:
+
+| Missing                | Likely cause                                                                 |
+|------------------------|------------------------------------------------------------------------------|
+| Inline highlighting    | Plugin not installed or not restarted (steps 4–5).                            |
+| Swatches / `● working` | Statusline not installed (step 2), or Claude Code not restarted.             |
+| Tab color              | Terminal config (step 6), or the terminal has no tab color support.          |
+| Every event twice      | Hooks registered by both `make install` and the plugin: run `claude-colorizer uninstall && claude-colorizer install --no-hooks`. |
+
+To change colors, see [Configuration](#configuration). The sections below
+cover each part in detail, including installing without the plugin.
+
 ## Terminal support
 
 Ghostty is the most tested terminal: it's the one claude-colorizer is
@@ -143,6 +210,10 @@ a translucent terminal turns solid while the tint is on. There are two fixes:
 
 ## Install
 
+For the full setup with the plugin, follow [Quick start](#quick-start). This
+section covers installing without the plugin, which gives you state colors
+and swatches but no inline highlighting.
+
 You need Go 1.22+ and Claude Code.
 
 ```sh
@@ -199,8 +270,9 @@ deletes the binary.
 
 ### Alternative: as a Claude Code plugin
 
-The repo is also a plugin marketplace. The plugin only provides the hooks,
-because plugins can't set a statusline:
+The repo is also a plugin marketplace. The plugin provides the hooks and
+inline highlighting (below), but not the statusline, because plugins can't
+set one:
 
 ```
 /plugin marketplace add /path/to/claude-colorizer
@@ -210,6 +282,39 @@ because plugins can't set a statusline:
 Then run `claude-colorizer install --no-hooks` to add the statusline without
 registering the hooks twice. To try it for a single session without installing,
 run `claude --plugin-dir /path/to/claude-colorizer`.
+
+### Inline highlighting
+
+Inline highlighting draws each color literal in Claude's replies on its own
+color, like nvim-colorizer does in a buffer. Replies without colors are drawn
+as usual. In a reply with colors, lines holding a color are drawn as plain
+text, so their bold and inline code markers are dropped.
+
+**It only works when the repo is loaded as a plugin.** The highlighter is a
+function-hooks module (`hooks/colorize.tsx`, with `hooks/colors.ts` porting
+`internal/colors`), and Claude Code loads it only from the plugin's
+`hooks/hooks.json`. `make install` writes plain command hooks to
+`settings.json`, which can't load modules, so with `make install` alone
+you get state colors and swatches but no inline highlighting.
+
+To turn it on, load the plugin in either of these ways:
+
+- For one session: `claude --plugin-dir /path/to/claude-colorizer`.
+- Permanently: install it as shown in
+  [Alternative: as a Claude Code plugin](#alternative-as-a-claude-code-plugin).
+  Installed plugins run from a cached copy, so reinstall after changing
+  `hooks/`.
+
+If you already ran `make install`, switch its hooks over to the plugin so
+each event doesn't fire twice:
+
+```sh
+claude-colorizer uninstall && claude-colorizer install --no-hooks
+```
+
+Highlighting starts in the next session. To check that it loaded, ask Claude
+to print a hex color such as `#ff5733`; it should appear on an orange
+background. Run its tests with `claude plugin test .`.
 
 ## What the colors mean
 

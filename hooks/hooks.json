@@ -1,4 +1,5 @@
 {
+  "modules": ["./colorize.tsx"],
   "description": "Recolor the terminal tab/background by Claude Code session state",
   "hooks": {
     "SessionStart":       [{ "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/run.sh\" hook", "timeout": 5 }] }],
