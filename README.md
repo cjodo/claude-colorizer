@@ -7,7 +7,7 @@ with no dependencies.
 - **Statusline swatches.** Colors mentioned in the conversation (Claude's
   replies, code it writes, your prompts) appear as live swatches under the
   prompt. It reads `#rgb`, `#rrggbb(aa)`, `rgb()/rgba()`, `hsl()/hsla()` and
-  `oklch()`.
+  `oklch()`. Turn them off with `"statusline": {"swatches": false}`.
 - **State colors.** The terminal tab and background tint change as the
   session moves through *idle → working → needs you → done / error*.
 - **State indicator.** The current state also appears as a colored dot at
@@ -240,6 +240,7 @@ to print the effective config.
     "done":    { "background": "#eef9f0" }
   },
   "statusline": {
+    "swatches": true,
     "max": 12,
     "sources": ["assistant", "tools", "user"],
     "label": "hex",
@@ -249,6 +250,11 @@ to print the effective config.
   }
 }
 ```
+
+`statusline.swatches` turns the color swatches on (default) or off. With
+`false`, the transcript isn't read and the statusline shows only the state
+indicator. The other swatch keys (`max`, `sources`, `label`, `prefix`,
+`empty`) then have no effect.
 
 `statusline.indicator` controls the state indicator: `"label"` (default,
 `● working`), `"dot"` (just `●`), or `"none"`. The dot uses the state's `tab`

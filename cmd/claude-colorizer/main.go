@@ -1,6 +1,6 @@
 // Command claude-colorizer visualizes colors for Claude Code sessions:
 //
-//   - statusline: swatches for colors mentioned in the conversation
+//   - statusline: session state and swatches for colors mentioned in the conversation
 //   - hook:       recolors the terminal tab/background by session state
 //   - show:       highlights color literals in text, like nvim-colorizer
 package main
@@ -28,7 +28,8 @@ import (
 const usage = `claude-colorizer — color visualization for Claude Code
 
 Usage:
-  claude-colorizer statusline [-- CMD...]  Claude Code statusLine: swatches of recent colors.
+  claude-colorizer statusline [-- CMD...]  Claude Code statusLine: state indicator and swatches
+                                           of recent colors (statusline.swatches).
                                            With CMD, its output is shown on the line above.
   claude-colorizer hook                    Claude Code hook handler (reads event JSON on stdin).
   claude-colorizer show [FILE...]          Highlight color literals in files or stdin.
@@ -132,15 +133,10 @@ func runStatusline(cfg config.Config, args []string) error {
 
 	var si statusInput
 	_ = json.Unmarshal(in, &si)
-	var matches []colors.Match
-	if si.TranscriptPath != "" {
-		var sources []transcript.Source
-		for _, s := range cfg.Statusline.Sources {
-			sources = append(sources, transcript.Source(s))
-		}
-		matches, _ = transcript.RecentColors(si.TranscriptPath, sources, cfg.Statusline.Max)
+	var line string
+	if cfg.Statusline.SwatchesEnabled() {
+		line = swatchLine(cfg.Statusline, si.TranscriptPath)
 	}
-	line := renderSwatches(cfg.Statusline, matches)
 	if ind := renderIndicator(cfg, session.Load(si.SessionID)); ind != "" {
 		if line != "" {
 			ind += "  "
@@ -149,6 +145,19 @@ func runStatusline(cfg config.Config, args []string) error {
 	}
 	fmt.Println(line)
 	return nil
+}
+
+// swatchLine renders the colors recently mentioned in the transcript.
+func swatchLine(sc config.Statusline, transcriptPath string) string {
+	var matches []colors.Match
+	if transcriptPath != "" {
+		var sources []transcript.Source
+		for _, s := range sc.Sources {
+			sources = append(sources, transcript.Source(s))
+		}
+		matches, _ = transcript.RecentColors(transcriptPath, sources, sc.Max)
+	}
+	return renderSwatches(sc, matches)
 }
 
 // renderIndicator shows the session's current state as a dot in its tab

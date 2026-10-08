@@ -33,7 +33,7 @@ from your working tree:
 
 | Command                          | What it does                                                         |
 |----------------------------------|----------------------------------------------------------------------|
-| `scripts/manual-test.sh hooks`   | Feeds every hook event through and checks the saved session state and the statusline indicator. Automatic and silent: pass/fail only. |
+| `scripts/manual-test.sh hooks`   | Feeds every hook event through and checks the saved session state, the statusline indicator and the `swatches` toggle. Automatic and silent: pass/fail only. |
 | `scripts/manual-test.sh states`  | Stage 1 below: `detect`, then each state for `DELAY` seconds, then `reset`. Watch the terminal. |
 | `scripts/manual-test.sh tmux`    | Stage 2 below: checks the running server's `allow-passthrough`, sends a raw OSC 7501 report, then one from a hidden window. |
 | `scripts/manual-test.sh`         | All three.                                                           |
@@ -92,7 +92,7 @@ CLAUDE_COLORIZER_DEBUG=1 claude
 | Ask for a command that needs permission    | amber (attention)               |
 | Let the reply finish                       | green (done)                    |
 | Ask it to run `false`                      | red, then blue on the next tool |
-| Ask for a color palette                    | swatches under the prompt       |
+| Ask for a color palette                    | swatches under the prompt (unless `statusline.swatches` is `false`) |
 | `/exit`                                    | your terminal's own colors      |
 
 `CLAUDE_COLORIZER_DEBUG=1` prints hook errors to stderr.
