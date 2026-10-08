@@ -15,6 +15,7 @@ const EnvPath = "CLAUDE_COLORIZER_CONFIG"
 
 // State names, driven by Claude Code hook events.
 const (
+	Idle      = "idle"
 	Working   = "working"
 	Attention = "attention"
 	Done      = "done"
@@ -53,6 +54,7 @@ func (c Config) StatusEnabled() bool     { return c.Status == nil || *c.Status }
 func Default() Config {
 	return Config{
 		States: map[string]Style{
+			Idle:      {Tab: "#94a3b8", Background: "#181b21", Glyph: "⚪"},
 			Working:   {Tab: "#3b82f6", Background: "#151b2b", Glyph: "🔵"},
 			Attention: {Tab: "#f59e0b", Background: "#2a2112", Glyph: "🟡"},
 			Done:      {Tab: "#22c55e", Background: "#13231a", Glyph: "🟢"},

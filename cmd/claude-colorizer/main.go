@@ -31,7 +31,7 @@ Usage:
                                            With CMD, its output is shown on the line above.
   claude-colorizer hook                    Claude Code hook handler (reads event JSON on stdin).
   claude-colorizer show [FILE...]          Highlight color literals in files or stdin.
-  claude-colorizer set STATE               Apply a state: working|attention|done|error.
+  claude-colorizer set STATE               Apply a state: idle|working|attention|done|error.
   claude-colorizer try COLOR               Set the terminal background to COLOR to preview it.
   claude-colorizer reset                   Restore tab color, background and title.
   claude-colorizer detect                  Show the detected terminal and its capabilities.
@@ -176,7 +176,9 @@ type hookInput struct {
 // means the event is ignored.
 func stateFor(event string) (state string, ok bool) {
 	switch event {
-	case "SessionStart", "SessionEnd":
+	case "SessionStart":
+		return config.Idle, true
+	case "SessionEnd":
 		return "", true
 	case "UserPromptSubmit", "PostToolUse":
 		return config.Working, true
@@ -249,6 +251,8 @@ func programStatus(state string, in hookInput) terminal.Status {
 	switch state {
 	case "":
 		s = terminal.Status{State: terminal.StatusClear}
+	case config.Idle:
+		s.State = terminal.StatusIdle
 	case config.Working:
 		s.State = terminal.StatusWorking
 	case config.Attention:
@@ -419,7 +423,7 @@ func runDetect(cfg config.Config) {
 	}
 	fmt.Printf("terminal:   %s\ntab color:  %s\nbackground: %s\ntitle:      %s\ntruecolor:  %s\ntmux:       %s\n",
 		term.Name(), yn(c.TabColor), yn(c.Background), yn(c.Title), yn(c.TrueColor), yn(terminal.InTmux(os.Getenv)))
-	for _, s := range []string{config.Working, config.Attention, config.Done, config.Error} {
+	for _, s := range []string{config.Idle, config.Working, config.Attention, config.Done, config.Error} {
 		st := cfg.States[s]
 		t, _ := colors.ParseHex(st.Tab)
 		b, _ := colors.ParseHex(st.Background)
