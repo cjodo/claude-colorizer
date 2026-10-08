@@ -16,6 +16,12 @@ with no dependencies.
 
 ## Terminal support
 
+Ghostty is the most tested terminal: it's the one claude-colorizer is
+developed in. The other drivers follow each terminal's documented escape
+sequences and have unit tests, but see less real use. If you use one of
+them, see [CONTRIBUTING.md](CONTRIBUTING.md) for a short test checklist and
+how to report results or add a terminal.
+
 | Terminal         | Tab color                        | Background tint    | Title fallback |
 |------------------|----------------------------------|--------------------|----------------|
 | Kitty            | ✅ remote control¹               | ✅ OSC 11          | —              |
@@ -199,3 +205,6 @@ light `background` values, or set `"background": false`.
 make test     # go vet + unit tests (parser, drivers, detection, transcript)
 make cross    # linux/darwin/windows binaries in dist/
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for testing on a terminal and adding
+a new one.
