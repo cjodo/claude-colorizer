@@ -4,7 +4,7 @@ Color visualization for Claude Code, in the spirit of
 [nvim-colorizer](https://github.com/NvChad/nvim-colorizer.lua). Written in Go
 with no dependencies.
 
-![claude-colorizer show and statusline output](docs/demo.gif)
+![A Claude Code session cycling through idle, working, attention, done and error, with the tab, background tint and statusline changing color](docs/demo.gif)
 
 - **Statusline swatches.** Colors mentioned in the conversation (Claude's
   replies, code it writes, your prompts) appear as live swatches under the
