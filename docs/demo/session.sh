@@ -107,8 +107,9 @@ add "  $GREY⎿  Updated with 3 changes$R"$'\n'
 hook PostToolUse
 think 1 Writing
 say "Warmed the header: #f38ba8 title, #fab387 accents, #f9e2af highlights on #1e1e2e."
-add "$ORANGE⏺$R Warmed the header: ${BOLD}#f38ba8$R title, ${BOLD}#fab387$R accents and"
-add "  ${BOLD}#f9e2af$R highlights on ${BOLD}#1e1e2e$R."$'\n'
+# Inline highlighting, as the plugin draws it: each hex on its own color.
+add "$ORANGE⏺$R $(echo "Warmed the header: #f38ba8 title, #fab387 accents and" | claude-colorizer show)"
+add "  $(echo "#f9e2af highlights on #1e1e2e." | claude-colorizer show)"$'\n'
 hook Stop
 draw
 sleep 2.4
