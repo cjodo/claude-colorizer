@@ -124,6 +124,13 @@ colors, which leave your terminal's text color alone. Set `"foreground"`
 under a state to change the text color, or set `"background": false` to turn
 off both the tint and the text color.
 
+`claude-colorizer theme` also writes a matching Claude Code theme to
+`~/.claude/themes/colorizer.json`, so Claude Code's own colors (the accent,
+text, diffs and borders) don't clash with the tint. Select **Colorizer** in
+`/theme` once. After that, Claude Code reloads it live every time you switch
+themes. If `~/.claude/themes/` didn't exist when Claude Code started, restart
+it once.
+
 ## Terminal support
 
 Ghostty is the most tested terminal: it's the one claude-colorizer is
