@@ -168,3 +168,54 @@ func TestSetTheme(t *testing.T) {
 		t.Errorf("default should remove the key:\n%s", data)
 	}
 }
+
+func TestClaudeTheme(t *testing.T) {
+	parse := func(name string) claudeTheme {
+		t.Helper()
+		data, err := ClaudeTheme(name)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		var ct claudeTheme
+		if err := json.Unmarshal(data, &ct); err != nil {
+			t.Fatalf("%s: invalid JSON: %v", name, err)
+		}
+		return ct
+	}
+
+	d := parse("dracula")
+	if d.Base != "dark" || d.Overrides["claude"] != "#bd93f9" || d.Overrides["success"] != "#50fa7b" || d.Overrides["text"] != "#f8f8f2" {
+		t.Errorf("dracula: got %+v", d)
+	}
+	if l := parse("catppuccin-latte"); l.Base != "light" {
+		t.Errorf("catppuccin-latte: base %q, want light", l.Base)
+	}
+	if def := parse(DefaultTheme); def.Base != "dark" || len(def.Overrides) != 0 {
+		t.Errorf("default: got %+v, want stock dark", def)
+	}
+	for _, name := range ThemeNames() {
+		for tok, v := range parse(name).Overrides {
+			if _, err := colors.ParseHex(v); err != nil || len(v) != 7 {
+				t.Errorf("%s/%s: bad color %q", name, tok, v)
+			}
+		}
+	}
+	if _, err := ClaudeTheme("nope"); err == nil {
+		t.Error("unknown theme: want error")
+	}
+}
+
+func TestWriteClaudeTheme(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	if err := WriteClaudeTheme("rose-pine"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "themes", "colorizer.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"#c4a7e7"`) {
+		t.Errorf("rose-pine accent missing:\n%s", data)
+	}
+}
