@@ -10,11 +10,13 @@ import (
 )
 
 // osc11 is embedded by drivers that use the standard OSC 11 / OSC 111 pair
-// for the background.
+// for the background, and OSC 10 / OSC 110 for the text color.
 type osc11 struct{}
 
 func (osc11) SetBackground(c colors.Color) []byte { return oscSetBackground(c) }
 func (osc11) ResetBackground() []byte             { return oscResetBackground() }
+func (osc11) SetForeground(c colors.Color) []byte { return oscSetForeground(c) }
+func (osc11) ResetForeground() []byte             { return oscResetForeground() }
 
 // noTab is embedded by drivers with no escape sequence for tab color.
 type noTab struct{}
@@ -131,6 +133,11 @@ func (ITerm2) SetBackground(c colors.Color) []byte {
 }
 func (ITerm2) ResetBackground() []byte { return oscResetBackground() }
 
+func (ITerm2) SetForeground(c colors.Color) []byte {
+	return []byte(esc + "]1337;SetColors=fg=" + c.Hex()[1:] + bel)
+}
+func (ITerm2) ResetForeground() []byte { return oscResetForeground() }
+
 // ---------------------------------------------------------------------------
 // Warp: renders truecolor and honors titles, but background escapes are not
 // reliably supported and tab colors are UI-only.
@@ -144,6 +151,8 @@ func (Warp) Name() string                      { return "warp" }
 func (Warp) Capabilities() Capabilities        { return Capabilities{Title: true, TrueColor: true} }
 func (Warp) SetBackground(colors.Color) []byte { return nil }
 func (Warp) ResetBackground() []byte           { return nil }
+func (Warp) SetForeground(colors.Color) []byte { return nil }
+func (Warp) ResetForeground() []byte           { return nil }
 
 // ---------------------------------------------------------------------------
 // Alacritty: OSC 11/111 and titles; it has no tabs.
@@ -191,7 +200,7 @@ func (Generic) Capabilities() Capabilities {
 // ---------------------------------------------------------------------------
 // Multi: several different terminals attached to one tmux session. Tab
 // colors are sent in every driver's dialect (each terminal ignores the
-// others'); background and title come from the first driver that has them,
+// others'); background, text color and title come from the first driver that has them,
 // since tmux applies those to the pane once for all clients.
 
 type Multi []Terminal
@@ -225,6 +234,10 @@ func (m Multi) SetBackground(c colors.Color) []byte {
 	return m.first(func(t Terminal) []byte { return t.SetBackground(c) })
 }
 func (m Multi) ResetBackground() []byte { return m.first(Terminal.ResetBackground) }
+func (m Multi) SetForeground(c colors.Color) []byte {
+	return m.first(func(t Terminal) []byte { return t.SetForeground(c) })
+}
+func (m Multi) ResetForeground() []byte { return m.first(Terminal.ResetForeground) }
 func (m Multi) SetTitle(s string) []byte {
 	return m.first(func(t Terminal) []byte { return t.SetTitle(s) })
 }

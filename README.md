@@ -116,9 +116,13 @@ on the next state change, with no restart.
 | Cobalt2     | `cobalt2`                                                                          |
 | Rosé Pine   | `rose-pine`, `rose-pine-moon`, `rose-pine-dawn`                                    |
 
-A theme sets only the tab and background colors of each state, so glyphs
-and everything else stay as they are. `claude-colorizer theme default` goes
-back to the built-in colors.
+A theme sets the tab color, background tint and text color of each state.
+The text color comes from the theme, so a light theme stays readable in a
+dark terminal and a dark theme in a light one. Glyphs and everything else stay
+as they are. `claude-colorizer theme default` goes back to the built-in
+colors, which leave your terminal's text color alone. Set `"foreground"`
+under a state to change the text color, or set `"background": false` to turn
+off both the tint and the text color.
 
 ## Terminal support
 
@@ -128,16 +132,16 @@ sequences and have unit tests, but see less real use. If you use one of
 them, see [CONTRIBUTING.md](CONTRIBUTING.md) for a short test checklist and
 how to report results or add a terminal.
 
-| Terminal         | Tab color                        | Background tint    | Title fallback |
+| Terminal         | Tab color                        | Background tint & text | Title fallback |
 |------------------|----------------------------------|--------------------|----------------|
-| Kitty            | ✅ remote control¹               | ✅ OSC 11          | —              |
-| Ghostty          | — (no escape exists)             | ✅ OSC 11          | ✅ glyph       |
-| WezTerm          | ✅ user var + Lua²               | ✅ OSC 11          | —              |
-| iTerm2           | ✅ OSC 6                         | ✅ OSC 1337        | —              |
-| Warp             | —                                | —                  | ✅ glyph       |
-| Alacritty        | — (no tabs)                      | ✅ OSC 11          | ✅ glyph       |
-| Windows Terminal | —                                | ✅ OSC 11          | ✅ glyph       |
-| other xterm-like | —                                | ✅ OSC 11          | ✅ glyph       |
+| Kitty            | ✅ remote control¹               | ✅ OSC 11 / 10         | —              |
+| Ghostty          | — (no escape exists)             | ✅ OSC 11 / 10         | ✅ glyph       |
+| WezTerm          | ✅ user var + Lua²               | ✅ OSC 11 / 10         | —              |
+| iTerm2           | ✅ OSC 6                         | ✅ OSC 1337            | —              |
+| Warp             | —                                | —                      | ✅ glyph       |
+| Alacritty        | — (no tabs)                      | ✅ OSC 11 / 10         | ✅ glyph       |
+| Windows Terminal | —                                | ✅ OSC 11 / 10         | ✅ glyph       |
+| other xterm-like | —                                | ✅ OSC 11 / 10         | ✅ glyph       |
 
 Statusline swatches use 24-bit SGR colors, which work in all of them.
 
@@ -183,8 +187,8 @@ set `"title": false`.
 
 ### tmux
 
-Background tint and title work without any setup, because tmux understands
-those sequences and applies them to the pane. Everything else has to reach
+Background tint, text color and title work without any setup, because tmux
+understands those sequences and applies them to the pane. Everything else has to reach
 the outer terminal through tmux passthrough:
 
 - tab colors (Kitty, iTerm2, WezTerm)
@@ -402,7 +406,7 @@ to print the effective config.
   "tmuxBackground": "pane",
   "states": {
     "working": { "tab": "#7c3aed", "background": "#1a1426" },
-    "done":    { "background": "#eef9f0" }
+    "done":    { "background": "#eef9f0", "foreground": "#1f2328" }
   },
   "statusline": {
     "swatches": true,
@@ -418,7 +422,9 @@ to print the effective config.
 
 `theme` picks one of the [built-in themes](#themes). Colors set under
 `states` are applied on top of it, field by field, so you can adjust a single
-state. An unknown name keeps the default colors (`claude-colorizer config`
+state. `foreground` is the text color shown on that state's background;
+without a theme it's unset and your terminal's own text color is kept. An
+unknown name keeps the default colors (`claude-colorizer config`
 prints a warning).
 
 `tmuxBackground` only matters inside tmux: `"pane"` (default) tints just
@@ -436,9 +442,11 @@ color. Hooks record each session's state in a small file under your cache
 directory (`~/.cache/claude-colorizer/sessions` on Linux, or
 `$CLAUDE_COLORIZER_STATE_DIR`), which is deleted when the session ends.
 
-The default background tints assume a dark theme. On a light theme, use a
-light theme (`catppuccin-latte`, `github-light`, `gruvbox-light`,
-`rose-pine-dawn`), set light `background` values, or set `"background": false`.
+The default background tints assume a dark terminal. On a light terminal,
+pick any theme: themes set the text color too, so light ones
+(`catppuccin-latte`, `github-light`, `gruvbox-light`, `rose-pine-dawn`) match
+it and dark ones stay readable. Or set light `background` values (with a
+`foreground` if needed), or set `"background": false`.
 
 ## Development
 

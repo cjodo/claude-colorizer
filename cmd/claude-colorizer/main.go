@@ -35,7 +35,7 @@ Usage:
   claude-colorizer show [FILE...]          Highlight color literals in files or stdin.
   claude-colorizer set STATE               Apply a state: idle|working|attention|done|error.
   claude-colorizer try COLOR               Set the terminal background to COLOR to preview it.
-  claude-colorizer reset                   Restore tab color, background and title.
+  claude-colorizer reset                   Restore tab color, background, text color and title.
   claude-colorizer detect                  Show the detected terminal and its capabilities.
   claude-colorizer config                  Print the effective configuration and its path.
   claude-colorizer theme [NAME]            List the built-in themes, or switch to one.
@@ -56,12 +56,12 @@ Config (~/.config/claude-colorizer/config.json, every key optional;
   theme                      built-in state colors, e.g. dracula, tokyo-night, rose-pine
                              (` + "`claude-colorizer theme`" + ` lists them)
   tab                        true|false: tab color (default true)
-  background                 true|false: background tint (default true)
+  background                 true|false: background tint and text color (default true)
   title                      true|false: title glyph where tabs can't be colored (default true)
   status                     true|false: OSC 7501 program status reports (default true)
   tmuxBackground             inside tmux, where the tint goes: pane (default) or terminal
                              (the outer terminal, which keeps its background opacity)
-  states.STATE               {"tab", "background", "glyph"} per state: idle, working,
+  states.STATE               {"tab", "background", "foreground", "glyph"} per state: idle, working,
                              attention, done, error
   statusline.swatches        true|false: color swatches (default true)
   statusline.max             max swatches shown (default 12)
@@ -284,7 +284,7 @@ func applyState(cfg config.Config, state string, in hookInput) error {
 			seqs = append(seqs, term.ResetTabColor())
 		}
 		if cfg.BackgroundEnabled() {
-			seqs = append(seqs, term.ResetBackground())
+			seqs = append(seqs, term.ResetBackground(), term.ResetForeground())
 		}
 		if cfg.TitleEnabled() && !caps.TabColor {
 			seqs = append(seqs, term.SetTitle(title("", cwd)))
@@ -297,8 +297,18 @@ func applyState(cfg config.Config, state string, in hookInput) error {
 		if c, err := colors.ParseHex(style.Tab); err == nil && cfg.TabEnabled() {
 			seqs = append(seqs, term.SetTabColor(c))
 		}
-		if c, err := colors.ParseHex(style.Background); err == nil && cfg.BackgroundEnabled() {
-			seqs = append(seqs, term.SetBackground(c))
+		if cfg.BackgroundEnabled() {
+			if c, err := colors.ParseHex(style.Background); err == nil {
+				seqs = append(seqs, term.SetBackground(c))
+			}
+			// The text color follows the theme, so a light tint on a dark
+			// terminal (or the reverse) stays readable. Without one, a color
+			// left from an earlier theme is reset.
+			if c, err := colors.ParseHex(style.Foreground); err == nil {
+				seqs = append(seqs, term.SetForeground(c))
+			} else {
+				seqs = append(seqs, term.ResetForeground())
+			}
 		}
 		// Terminals without colorable tabs get a glyph in the title instead.
 		if cfg.TitleEnabled() && (!caps.TabColor || !cfg.TabEnabled()) {
@@ -504,11 +514,11 @@ func runTheme(cfg config.Config, args []string) error {
 		for _, s := range order {
 			t, _ := colors.ParseHex(states[s].Tab)
 			b, _ := colors.ParseHex(states[s].Background)
-			line += " " + bg(t) + "  " + bg(b) + "  " + sgrReset
+			line += " " + bg(t) + "  " + bg(b) + sample(states[s].Foreground) + sgrReset
 		}
 		fmt.Println(line)
 	}
-	fmt.Println("\nswatches: tab and background for idle, working, attention, done, error")
+	fmt.Println("\nswatches: tab, and text on background, for idle, working, attention, done, error")
 	fmt.Println("set one with: claude-colorizer theme NAME")
 	return nil
 }
@@ -530,11 +540,25 @@ func runDetect(cfg config.Config) {
 		st := cfg.States[s]
 		t, _ := colors.ParseHex(st.Tab)
 		b, _ := colors.ParseHex(st.Background)
-		fmt.Printf("%-10s  %s  tab %s %s  bg %s\n", s, st.Glyph, bg(t)+"   "+sgrReset, st.Tab, bg(b)+"   "+sgrReset)
+		fmt.Printf("%-10s  %s  tab %s %s  bg %s%s %s", s, st.Glyph, bg(t)+"   "+sgrReset, st.Tab, bg(b), sample(st.Foreground)+sgrReset, st.Background)
+		if st.Foreground != "" {
+			fmt.Printf("  fg %s", st.Foreground)
+		}
+		fmt.Println()
 	}
 }
 
 const sgrReset = "\x1b[0m"
 
 func bg(c colors.Color) string { return fmt.Sprintf("\x1b[48;2;%d;%d;%dm", c.R, c.G, c.B) }
+
+// sample is "Aa" in the hex text color, or two blank cells without one.
+func sample(hex string) string {
+	c, err := colors.ParseHex(hex)
+	if err != nil {
+		return "  "
+	}
+	return fg(c) + "Aa"
+}
+
 func fg(c colors.Color) string { return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", c.R, c.G, c.B) }
