@@ -417,6 +417,13 @@ func runSetup(cmd string, args []string) error {
 		fmt.Printf("  %s\n", c)
 	}
 	if cmd == "install" && !*dryRun {
+		// Match Claude Code's own UI to a configured theme from the start.
+		if cfg, err := config.Load(); err == nil && cfg.Theme != "" {
+			if err := config.WriteClaudeTheme(cfg.Theme); err != nil {
+				return err
+			}
+			fmt.Printf("  Claude Code theme: %s (select \"Colorizer\" in /theme)\n", config.ClaudeThemePath())
+		}
 		fmt.Printf("  binary: %s\nRestart Claude Code to pick up the changes. Terminal: ", bin)
 		runDetectName()
 	}
@@ -500,6 +507,10 @@ func runTheme(cfg config.Config, args []string) error {
 			return err
 		}
 		fmt.Printf("theme set to %s (%s)\n", name, config.Path())
+		if err := config.WriteClaudeTheme(name); err != nil {
+			return err
+		}
+		fmt.Printf("Claude Code theme → %s (select \"Colorizer\" in /theme once)\n", config.ClaudeThemePath())
 		return nil
 	}
 	active, _ := config.ResolveTheme(cfg.Theme)
