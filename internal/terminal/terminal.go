@@ -16,7 +16,8 @@ import (
 type Capabilities struct {
 	// TabColor: the tab (or title bar) can be colored by escape sequence.
 	TabColor bool
-	// Background: the default background can be set (OSC 11) and reset.
+	// Background: the default background (OSC 11) and text color (OSC 10)
+	// can be set and reset.
 	Background bool
 	// Title: the window/tab title can be set (OSC 0/2).
 	Title bool
@@ -35,6 +36,9 @@ type Terminal interface {
 
 	SetBackground(c colors.Color) []byte
 	ResetBackground() []byte
+
+	SetForeground(c colors.Color) []byte
+	ResetForeground() []byte
 
 	SetTitle(title string) []byte
 }
@@ -70,6 +74,10 @@ func osc(body string) []byte { return []byte(esc + "]" + body + st) }
 func oscSetBackground(c colors.Color) []byte { return osc("11;" + c.Hex()) }
 
 func oscResetBackground() []byte { return osc("111") }
+
+func oscSetForeground(c colors.Color) []byte { return osc("10;" + c.Hex()) }
+
+func oscResetForeground() []byte { return osc("110") }
 
 func oscTitle(title string) []byte { return osc("2;" + sanitize(title)) }
 
