@@ -6,13 +6,13 @@ import (
 )
 
 // Writer sends sequences to the terminal. Inside tmux, sequences tmux
-// understands itself (background, title) are sent as-is so tmux applies them
+// understands itself (background, text color, title) are sent as-is so tmux applies them
 // to the pane; anything else is wrapped for passthrough to the outer terminal
 // (requires `set -g allow-passthrough on`).
 type Writer struct {
 	W    io.Writer
 	Tmux bool
-	// PassBackground passes background sequences through to the outer
+	// PassBackground passes background and text color sequences through to the outer
 	// terminal instead of letting tmux apply them to the pane. tmux paints a
 	// recolored pane with an explicit cell background, which terminals draw
 	// fully opaque; the outer terminal's own default background keeps its
@@ -29,10 +29,10 @@ func (w Writer) Write(seqs ...[]byte) error {
 			continue
 		}
 		switch {
-		case w.Tmux && w.PassBackground && isBackground(s):
-			// A reset also clears any pane background tmux holds from
-			// before, so the pane goes back to drawing the default.
-			if strings.HasPrefix(string(s), esc+"]111") {
+		case w.Tmux && w.PassBackground && isPaneColor(s):
+			// A reset also clears any pane color tmux holds from before,
+			// so the pane goes back to drawing the default.
+			if strings.HasPrefix(string(s), esc+"]111") || strings.HasPrefix(string(s), esc+"]110") {
 				b = append(b, s...)
 			}
 			s = tmuxWrap(s)
@@ -48,11 +48,15 @@ func (w Writer) Write(seqs ...[]byte) error {
 	return err
 }
 
-// tmuxNative reports whether tmux handles s itself: OSC 11/111 set and reset
-// the pane background, OSC 0/2 set the pane title. Passing these through
+// tmuxNative reports whether tmux handles s itself: OSC 10/110 and 11/111
+// set and reset the pane text color and background, OSC 0/2 set the pane
+// title. Passing these through
 // would bypass tmux and recolor the whole outer window instead of the pane.
 func tmuxNative(s []byte) bool {
-	for _, p := range []string{"11;", "111" + st, "111" + bel, "0;", "2;"} {
+	if isPaneColor(s) {
+		return true
+	}
+	for _, p := range []string{"0;", "2;"} {
 		if strings.HasPrefix(string(s), esc+"]"+p) {
 			return true
 		}
@@ -60,9 +64,10 @@ func tmuxNative(s []byte) bool {
 	return false
 }
 
-// isBackground reports whether s sets or resets the background (OSC 11/111).
-func isBackground(s []byte) bool {
-	for _, p := range []string{"11;", "111" + st, "111" + bel} {
+// isPaneColor reports whether s sets or resets the background (OSC 11/111)
+// or text color (OSC 10/110).
+func isPaneColor(s []byte) bool {
+	for _, p := range []string{"11;", "111" + st, "111" + bel, "10;", "110" + st, "110" + bel} {
 		if strings.HasPrefix(string(s), esc+"]"+p) {
 			return true
 		}
