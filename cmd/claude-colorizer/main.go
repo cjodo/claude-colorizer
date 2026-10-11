@@ -38,6 +38,7 @@ Usage:
   claude-colorizer reset                   Restore tab color, background and title.
   claude-colorizer detect                  Show the detected terminal and its capabilities.
   claude-colorizer config                  Print the effective configuration and its path.
+  claude-colorizer theme [NAME]            List the built-in themes, or switch to one.
   claude-colorizer install [FLAGS]         Add the statusline and hooks to ~/.claude/settings.json.
   claude-colorizer uninstall [FLAGS]       Remove them again (restores a chained statusline).
       --no-hooks  --no-statusline  --dry-run  --settings PATH
@@ -52,6 +53,8 @@ Environment:
 
 Config (~/.config/claude-colorizer/config.json, every key optional;
 ` + "`claude-colorizer config`" + ` prints the effective values):
+  theme                      built-in state colors, e.g. dracula, tokyo-night, rose-pine
+                             (` + "`claude-colorizer theme`" + ` lists them)
   tab                        true|false: tab color (default true)
   background                 true|false: background tint (default true)
   title                      true|false: title glyph where tabs can't be colored (default true)
@@ -101,6 +104,8 @@ func main() {
 		err = applyState(cfg, "", hookInput{})
 	case "detect":
 		runDetect(cfg)
+	case "theme":
+		err = runTheme(cfg, args)
 	case "install", "uninstall":
 		err = runSetup(cmd, args)
 	case "config":
@@ -468,6 +473,44 @@ func runTry(cfg config.Config, args []string) error {
 	}
 	fmt.Printf("background → %s  (run `claude-colorizer reset` to restore)\n", ms[0].Color.Hex())
 	return writeTTY(cfg, seq)
+}
+
+// runTheme lists the built-in themes or, given a name, saves it to the
+// config file.
+func runTheme(cfg config.Config, args []string) error {
+	if len(args) > 1 {
+		return fmt.Errorf("usage: theme [NAME]")
+	}
+	if len(args) == 1 {
+		name, err := config.ResolveTheme(args[0])
+		if err != nil {
+			return err
+		}
+		if err := config.SetTheme(name); err != nil {
+			return err
+		}
+		fmt.Printf("theme set to %s (%s)\n", name, config.Path())
+		return nil
+	}
+	active, _ := config.ResolveTheme(cfg.Theme)
+	order := []string{config.Idle, config.Working, config.Attention, config.Done, config.Error}
+	for _, name := range config.ThemeNames() {
+		states, _ := config.ThemeStates(name)
+		mark := " "
+		if name == active {
+			mark = "*"
+		}
+		line := fmt.Sprintf("%s %-21s", mark, name)
+		for _, s := range order {
+			t, _ := colors.ParseHex(states[s].Tab)
+			b, _ := colors.ParseHex(states[s].Background)
+			line += " " + bg(t) + "  " + bg(b) + "  " + sgrReset
+		}
+		fmt.Println(line)
+	}
+	fmt.Println("\nswatches: tab and background for idle, working, attention, done, error")
+	fmt.Println("set one with: claude-colorizer theme NAME")
+	return nil
 }
 
 func runDetectName() { fmt.Println(terminal.Detect(os.Getenv).Name()) }
