@@ -25,6 +25,7 @@ const (
 type Style struct {
 	Tab        string `json:"tab,omitempty"`        // tab color (hex)
 	Background string `json:"background,omitempty"` // background tint (hex)
+	Foreground string `json:"foreground,omitempty"` // text color (hex); empty leaves the terminal's
 	Glyph      string `json:"glyph,omitempty"`      // title prefix where tabs can't be colored
 }
 
@@ -146,6 +147,9 @@ func merge(base, user Config) Config {
 		}
 		if u.Background != "" {
 			b.Background = u.Background
+		}
+		if u.Foreground != "" {
+			b.Foreground = u.Foreground
 		}
 		if u.Glyph != "" {
 			b.Glyph = u.Glyph
