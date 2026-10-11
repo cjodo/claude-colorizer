@@ -87,6 +87,39 @@ If something is missing, check the table below:
 To change colors, see [Configuration](#configuration). The sections below
 cover each part in detail, including installing without the plugin.
 
+## Themes
+
+Pick a built-in color theme with one command:
+
+```sh
+claude-colorizer theme dracula
+```
+
+or one line in `~/.config/claude-colorizer/config.json`:
+
+```json
+{ "theme": "dracula" }
+```
+
+Run `claude-colorizer theme` to list them all with swatches. It takes effect
+on the next state change, with no restart.
+
+| Theme       | Names                                                                              |
+|-------------|------------------------------------------------------------------------------------|
+| Dracula     | `dracula`                                                                          |
+| One Dark Pro | `one-dark-pro`                                                                     |
+| Tokyo Night | `tokyo-night`                                                                      |
+| Catppuccin  | `catppuccin-mocha` (`catppuccin`), `catppuccin-macchiato`, `catppuccin-frappe`, `catppuccin-latte` |
+| Gruvbox     | `gruvbox-dark` (`gruvbox`), `gruvbox-light`                                        |
+| GitHub      | `github-dark` (`github`), `github-light`                                           |
+| Night Owl   | `night-owl`                                                                        |
+| Cobalt2     | `cobalt2`                                                                          |
+| Rosé Pine   | `rose-pine`, `rose-pine-moon`, `rose-pine-dawn`                                    |
+
+A theme sets only the tab and background colors of each state, so glyphs
+and everything else stay as they are. `claude-colorizer theme default` goes
+back to the built-in colors.
+
 ## Terminal support
 
 Ghostty is the most tested terminal: it's the one claude-colorizer is
@@ -361,6 +394,7 @@ to print the effective config.
 
 ```json
 {
+  "theme": "catppuccin-mocha",
   "tab": true,
   "background": true,
   "title": true,
@@ -382,6 +416,11 @@ to print the effective config.
 }
 ```
 
+`theme` picks one of the [built-in themes](#themes). Colors set under
+`states` are applied on top of it, field by field, so you can adjust a single
+state. An unknown name keeps the default colors (`claude-colorizer config`
+prints a warning).
+
 `tmuxBackground` only matters inside tmux: `"pane"` (default) tints just
 Claude's pane, `"terminal"` tints the outer terminal and keeps its background
 opacity (see [tmux](#tmux)).
@@ -397,8 +436,9 @@ color. Hooks record each session's state in a small file under your cache
 directory (`~/.cache/claude-colorizer/sessions` on Linux, or
 `$CLAUDE_COLORIZER_STATE_DIR`), which is deleted when the session ends.
 
-The default background tints assume a dark theme. On a light theme, set
-light `background` values, or set `"background": false`.
+The default background tints assume a dark theme. On a light theme, use a
+light theme (`catppuccin-latte`, `github-light`, `gruvbox-light`,
+`rose-pine-dawn`), set light `background` values, or set `"background": false`.
 
 ## Development
 
