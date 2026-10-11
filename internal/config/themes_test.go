@@ -29,8 +29,32 @@ func TestThemesValid(t *testing.T) {
 			if st.Glyph != def[s].Glyph {
 				t.Errorf("%s/%s: glyph changed to %q", name, s, st.Glyph)
 			}
+			if name == DefaultTheme {
+				if st.Foreground != "" {
+					t.Errorf("default/%s: foreground %q, want the terminal's own", s, st.Foreground)
+				}
+				continue
+			}
+			fg, err := colors.ParseHex(st.Foreground)
+			if err != nil || len(st.Foreground) != 7 {
+				t.Errorf("%s/%s: bad foreground %q", name, s, st.Foreground)
+				continue
+			}
+			bg, _ := colors.ParseHex(st.Background)
+			if r := contrast(fg, bg); r < 4.5 {
+				t.Errorf("%s/%s: text %s on %s has contrast %.2f, want >= 4.5", name, s, st.Foreground, st.Background, r)
+			}
 		}
 	}
+}
+
+// contrast is the WCAG contrast ratio between two colors.
+func contrast(a, b colors.Color) float64 {
+	la, lb := a.Luminance()+0.05, b.Luminance()+0.05
+	if la < lb {
+		la, lb = lb, la
+	}
+	return la / lb
 }
 
 func TestResolveTheme(t *testing.T) {
@@ -78,6 +102,20 @@ func TestLoadTheme(t *testing.T) {
 	}
 	if got := cfg.States[Done]; got != want[Done] {
 		t.Errorf("done = %+v, want %+v", got, want[Done])
+	}
+}
+
+func TestLoadThemeForeground(t *testing.T) {
+	writeConfig(t, `{"theme": "catppuccin-latte", "states": {"done": {"foreground": "#000000"}}}`)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.States[Working].Foreground; got != "#4c4f69" {
+		t.Errorf("working foreground = %q, want the theme's #4c4f69", got)
+	}
+	if got := cfg.States[Done].Foreground; got != "#000000" {
+		t.Errorf("done foreground = %q, want user's #000000", got)
 	}
 }
 

@@ -53,6 +53,9 @@ func TestCapabilitiesMatchSequences(t *testing.T) {
 		if got := d.SetBackground(c) != nil; got != caps.Background {
 			t.Errorf("%s: SetBackground non-nil=%v, Background cap=%v", d.Name(), got, caps.Background)
 		}
+		if got := d.SetForeground(c) != nil; got != caps.Background {
+			t.Errorf("%s: SetForeground non-nil=%v, Background cap=%v", d.Name(), got, caps.Background)
+		}
 		if got := d.SetTitle("x") != nil; got != caps.Title {
 			t.Errorf("%s: SetTitle non-nil=%v, Title cap=%v", d.Name(), got, caps.Title)
 		}
@@ -67,6 +70,9 @@ func TestSequences(t *testing.T) {
 		want string
 	}{
 		{"osc11", Ghostty{}.SetBackground(c), "\x1b]11;#3b82f6\x1b\\"},
+		{"osc10", Ghostty{}.SetForeground(c), "\x1b]10;#3b82f6\x1b\\"},
+		{"osc110", Ghostty{}.ResetForeground(), "\x1b]110\x1b\\"},
+		{"iterm fg", ITerm2{}.SetForeground(c), "\x1b]1337;SetColors=fg=3b82f6\a"},
 		{"iterm tab", ITerm2{}.SetTabColor(c), "\x1b]6;1;bg;red;brightness;59\a\x1b]6;1;bg;green;brightness;130\a\x1b]6;1;bg;blue;brightness;246\a"},
 		{"wezterm var", WezTerm{}.SetTabColor(c), "\x1b]1337;SetUserVar=claude_colorizer_tab=IzNiODJmNg==\a"},
 		{"title sanitized", Alacritty{}.SetTitle("a\x1b]evil\ab"), "\x1b]2;a]evilb\x1b\\"},
@@ -86,27 +92,30 @@ func TestSequences(t *testing.T) {
 func TestTmuxWrap(t *testing.T) {
 	var buf bytes.Buffer
 	w := Writer{W: &buf, Tmux: true}
-	// tmux applies background and title itself; other sequences pass through.
-	if err := w.Write(nil, osc("11;#000000"), osc("111"), osc("1337;SetUserVar=x=eQ==")); err != nil {
+	// tmux applies background, text color and title itself; other
+	// sequences pass through.
+	if err := w.Write(nil, osc("11;#000000"), osc("111"), osc("10;#ffffff"), osc("110"), osc("1337;SetUserVar=x=eQ==")); err != nil {
 		t.Fatal(err)
 	}
-	want := "\x1b]11;#000000\x1b\\" + "\x1b]111\x1b\\" +
+	want := "\x1b]11;#000000\x1b\\" + "\x1b]111\x1b\\" + "\x1b]10;#ffffff\x1b\\" + "\x1b]110\x1b\\" +
 		"\x1bPtmux;\x1b\x1b]1337;SetUserVar=x=eQ==\x1b\x1b\\\x1b\\"
 	if buf.String() != want {
 		t.Errorf("got %q, want %q", buf.String(), want)
 	}
 }
 
-// With PassBackground, OSC 11/111 go to the outer terminal so it keeps its
-// background opacity; a reset also clears tmux's pane background.
+// With PassBackground, OSC 10/110 and 11/111 go to the outer terminal so it
+// keeps its background opacity; a reset also clears tmux's pane color.
 func TestTmuxPassBackground(t *testing.T) {
 	var buf bytes.Buffer
 	w := Writer{W: &buf, Tmux: true, PassBackground: true}
-	if err := w.Write(osc("11;#000000"), osc("111"), osc("2;title")); err != nil {
+	if err := w.Write(osc("11;#000000"), osc("111"), osc("10;#ffffff"), osc("110"), osc("2;title")); err != nil {
 		t.Fatal(err)
 	}
 	want := "\x1bPtmux;\x1b\x1b]11;#000000\x1b\x1b\\\x1b\\" +
 		"\x1b]111\x1b\\" + "\x1bPtmux;\x1b\x1b]111\x1b\x1b\\\x1b\\" +
+		"\x1bPtmux;\x1b\x1b]10;#ffffff\x1b\x1b\\\x1b\\" +
+		"\x1b]110\x1b\\" + "\x1bPtmux;\x1b\x1b]110\x1b\x1b\\\x1b\\" +
 		"\x1b]2;title\x1b\\"
 	if buf.String() != want {
 		t.Errorf("got %q, want %q", buf.String(), want)
