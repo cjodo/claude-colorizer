@@ -398,9 +398,25 @@ func runSetup(cmd string, args []string) error {
 		Hooks:      !*noHooks,
 		Statusline: !*noStatus,
 		DryRun:     *dryRun,
+		Theme:      "custom:" + config.ClaudeThemeSlug,
 	}
 	var changes []string
 	if cmd == "install" {
+		// Write Claude Code's theme to match the colorizer theme, so
+		// selecting it below recolors Claude Code's own UI right away.
+		cfg, _ := config.Load()
+		data, err := config.ClaudeTheme(cfg.Theme)
+		if err != nil {
+			return err
+		}
+		var t struct{ Base string }
+		json.Unmarshal(data, &t)
+		o.ThemeLight = t.Base == "light"
+		if !*dryRun {
+			if err := config.WriteClaudeTheme(cfg.Theme); err != nil {
+				return err
+			}
+		}
 		changes, err = setup.Install(o)
 	} else {
 		changes, err = setup.Uninstall(o)
@@ -417,13 +433,6 @@ func runSetup(cmd string, args []string) error {
 		fmt.Printf("  %s\n", c)
 	}
 	if cmd == "install" && !*dryRun {
-		// Match Claude Code's own UI to a configured theme from the start.
-		if cfg, err := config.Load(); err == nil && cfg.Theme != "" {
-			if err := config.WriteClaudeTheme(cfg.Theme); err != nil {
-				return err
-			}
-			fmt.Printf("  Claude Code theme: %s (select \"Colorizer\" in /theme)\n", config.ClaudeThemePath())
-		}
 		fmt.Printf("  binary: %s\nRestart Claude Code to pick up the changes. Terminal: ", bin)
 		runDetectName()
 	}
@@ -510,7 +519,7 @@ func runTheme(cfg config.Config, args []string) error {
 		if err := config.WriteClaudeTheme(name); err != nil {
 			return err
 		}
-		fmt.Printf("Claude Code theme → %s (select \"Colorizer\" in /theme once)\n", config.ClaudeThemePath())
+		fmt.Printf("Claude Code theme → %s\n", config.ClaudeThemePath())
 		return nil
 	}
 	active, _ := config.ResolveTheme(cfg.Theme)

@@ -102,3 +102,45 @@ func TestInstallFreshAndInvalid(t *testing.T) {
 		t.Error("invalid file was modified")
 	}
 }
+
+func TestInstallTheme(t *testing.T) {
+	const ours = "custom:colorizer"
+	for _, tc := range []struct {
+		name, prev string
+		light      bool
+		want       string // theme after install
+	}{
+		{"unset", "", false, ours},
+		{"dark preset", "dark", false, ours},
+		{"light preset, dark theme", "light", false, "light"},
+		{"light preset, light theme", "light", true, ours},
+		{"own custom theme", "custom:mine", false, "custom:mine"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			settings := filepath.Join(dir, "settings.json")
+			orig := `{}`
+			if tc.prev != "" {
+				orig = `{"theme": "` + tc.prev + `"}`
+			}
+			if err := os.WriteFile(settings, []byte(orig), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			o := Options{Settings: settings, StateDir: dir, Theme: ours, ThemeLight: tc.light}
+			if _, err := Install(o); err != nil {
+				t.Fatal(err)
+			}
+			got, _ := readJSON(t, settings)["theme"].(string)
+			if got != tc.want {
+				t.Fatalf("theme after install = %q, want %q", got, tc.want)
+			}
+			if _, err := Uninstall(o); err != nil {
+				t.Fatal(err)
+			}
+			got, _ = readJSON(t, settings)["theme"].(string)
+			if got != tc.prev {
+				t.Errorf("theme after uninstall = %q, want %q", got, tc.prev)
+			}
+		})
+	}
+}

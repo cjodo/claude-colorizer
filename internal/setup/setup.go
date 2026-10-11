@@ -42,6 +42,11 @@ type Options struct {
 	Hooks      bool
 	Statusline bool
 	DryRun     bool
+	// Theme is the Claude Code theme to select (e.g. "custom:colorizer");
+	// empty leaves the theme alone. ThemeLight says whether it has a light
+	// base, so a light preset isn't swapped for a dark theme.
+	Theme      string
+	ThemeLight bool
 }
 
 // DefaultSettingsPath is the user-level Claude Code settings file.
@@ -81,7 +86,7 @@ func Install(o Options) ([]string, error) {
 				// Keep the user's statusline: it renders above the swatches.
 				cmd += " -- sh -c " + shellQuote(prevCmd)
 				if !o.DryRun {
-					if err := savePrevious(o.StateDir, prev); err != nil {
+					if err := saveState(o.StateDir, previousStatusline, prev); err != nil {
 						return nil, err
 					}
 				}
@@ -121,6 +126,27 @@ func Install(o Options) ([]string, error) {
 		}
 	}
 
+	if o.Theme != "" {
+		prev, _ := s["theme"].(string)
+		switch {
+		case prev == o.Theme:
+			changes = append(changes, "theme: already selected")
+		case strings.HasPrefix(prev, "custom:"):
+			// The user built their own theme; don't replace it.
+			changes = append(changes, "theme: kept "+prev+" (pick Colorizer in /theme to switch)")
+		case strings.HasPrefix(prev, "light") && !o.ThemeLight:
+			changes = append(changes, "theme: kept "+prev+" (Colorizer is dark; pick it in /theme to switch)")
+		default:
+			if !o.DryRun {
+				if err := saveState(o.StateDir, previousTheme, map[string]any{"theme": s["theme"]}); err != nil {
+					return nil, err
+				}
+			}
+			s["theme"] = o.Theme
+			changes = append(changes, "theme: selected "+o.Theme)
+		}
+	}
+
 	if o.DryRun {
 		return changes, nil
 	}
@@ -128,7 +154,7 @@ func Install(o Options) ([]string, error) {
 }
 
 // Uninstall removes everything Install added and restores a chained
-// statusLine.
+// statusLine and the previous theme.
 func Uninstall(o Options) ([]string, error) {
 	s, err := load(o.Settings)
 	if err != nil {
@@ -138,7 +164,7 @@ func Uninstall(o Options) ([]string, error) {
 
 	if sl, _ := s["statusLine"].(map[string]any); sl != nil {
 		if cmd, _ := sl["command"].(string); strings.Contains(cmd, marker) {
-			if prev, ok := loadPrevious(o.StateDir); ok {
+			if prev, ok := loadState(o.StateDir, previousStatusline); ok {
 				s["statusLine"] = prev
 				changes = append(changes, "statusLine: restored previous command")
 			} else {
@@ -174,6 +200,16 @@ func Uninstall(o Options) ([]string, error) {
 		}
 	}
 
+	if o.Theme != "" && s["theme"] == o.Theme {
+		if prev, ok := loadState(o.StateDir, previousTheme); ok && prev["theme"] != nil {
+			s["theme"] = prev["theme"]
+			changes = append(changes, fmt.Sprintf("theme: restored %v", prev["theme"]))
+		} else {
+			delete(s, "theme")
+			changes = append(changes, "theme: removed")
+		}
+	}
+
 	if len(changes) == 0 {
 		return []string{"nothing to remove"}, nil
 	}
@@ -183,7 +219,8 @@ func Uninstall(o Options) ([]string, error) {
 	if err := save(o.Settings, s); err != nil {
 		return nil, err
 	}
-	os.Remove(filepath.Join(o.StateDir, "previous-statusline.json"))
+	os.Remove(filepath.Join(o.StateDir, previousStatusline))
+	os.Remove(filepath.Join(o.StateDir, previousTheme))
 	return changes, nil
 }
 
@@ -240,16 +277,22 @@ func save(path string, s map[string]any) error {
 	return os.Rename(tmp, path)
 }
 
-func savePrevious(dir string, prev map[string]any) error {
+// State files holding what Install replaced, for Uninstall to restore.
+const (
+	previousStatusline = "previous-statusline.json"
+	previousTheme      = "previous-theme.json"
+)
+
+func saveState(dir, name string, prev map[string]any) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	data, _ := json.MarshalIndent(prev, "", "  ")
-	return os.WriteFile(filepath.Join(dir, "previous-statusline.json"), data, 0o600)
+	return os.WriteFile(filepath.Join(dir, name), data, 0o600)
 }
 
-func loadPrevious(dir string) (map[string]any, bool) {
-	data, err := os.ReadFile(filepath.Join(dir, "previous-statusline.json"))
+func loadState(dir, name string) (map[string]any, bool) {
+	data, err := os.ReadFile(filepath.Join(dir, name))
 	if err != nil {
 		return nil, false
 	}

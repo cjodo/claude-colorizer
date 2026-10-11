@@ -126,10 +126,11 @@ off both the tint and the text color.
 
 `claude-colorizer theme` also writes a matching Claude Code theme to
 `~/.claude/themes/colorizer.json`, so Claude Code's own colors (the accent,
-text, diffs and borders) don't clash with the tint. Select **Colorizer** in
-`/theme` once. After that, Claude Code reloads it live every time you switch
-themes. If `~/.claude/themes/` didn't exist when Claude Code started, restart
-it once.
+text, diffs and borders) don't clash with the tint. `claude-colorizer install`
+selects it for you, unless you already use your own custom theme or a light
+preset with a dark colorizer theme; in that case pick **Colorizer** in
+`/theme` yourself. After that, Claude Code reloads it live every time you
+switch themes. `uninstall` restores your previous theme.
 
 ## Terminal support
 
