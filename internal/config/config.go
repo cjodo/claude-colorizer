@@ -39,10 +39,11 @@ type Statusline struct {
 }
 
 type Config struct {
-	Tab        *bool `json:"tab,omitempty"`
-	Background *bool `json:"background,omitempty"`
-	Title      *bool `json:"title,omitempty"`
-	Status     *bool `json:"status,omitempty"` // OSC 7501 program status
+	Theme      string `json:"theme,omitempty"` // built-in palette for the state colors
+	Tab        *bool  `json:"tab,omitempty"`
+	Background *bool  `json:"background,omitempty"`
+	Title      *bool  `json:"title,omitempty"`
+	Status     *bool  `json:"status,omitempty"` // OSC 7501 program status
 	// TmuxBackground picks who applies the background tint inside tmux:
 	// "pane" (tmux, per pane) or "terminal" (passed through to the outer
 	// terminal, which keeps its background opacity).
@@ -110,10 +111,19 @@ func Load() (Config, error) {
 	if err := json.Unmarshal(data, &user); err != nil {
 		return cfg, err
 	}
-	return merge(cfg, user), nil
+	// The theme goes under the user's own state colors. An unknown theme
+	// keeps the defaults and is reported, but the rest still applies.
+	themeErr := applyTheme(cfg.States, user.Theme)
+	if themeErr != nil {
+		user.Theme = ""
+	}
+	return merge(cfg, user), themeErr
 }
 
 func merge(base, user Config) Config {
+	if user.Theme != "" {
+		base.Theme = user.Theme
+	}
 	if user.Tab != nil {
 		base.Tab = user.Tab
 	}
