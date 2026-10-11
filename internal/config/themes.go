@@ -153,3 +153,95 @@ func SetTheme(name string) error {
 	}
 	return os.WriteFile(path, append(out, '\n'), 0o644)
 }
+
+// ClaudeThemeSlug names the Claude Code theme file written for the active
+// theme. Claude Code stores the choice as "custom:colorizer".
+const ClaudeThemeSlug = "colorizer"
+
+// shimmerAmount is how far a shimmer variant moves from its token toward Fg.
+const shimmerAmount = 0.3
+
+// ClaudeThemePath returns where Claude Code looks for the colorizer theme.
+func ClaudeThemePath() string {
+	dir := os.Getenv("CLAUDE_CONFIG_DIR")
+	if dir == "" {
+		home, _ := os.UserHomeDir()
+		dir = filepath.Join(home, ".claude")
+	}
+	return filepath.Join(dir, "themes", ClaudeThemeSlug+".json")
+}
+
+type claudeTheme struct {
+	Name      string            `json:"name"`
+	Base      string            `json:"base"`
+	Overrides map[string]string `json:"overrides,omitempty"`
+}
+
+// ClaudeTheme returns a Claude Code custom theme that recolors its UI
+// (accent, text, diffs, borders) to match the named theme. The default
+// theme gets no overrides, so it renders as Claude Code's stock dark preset.
+func ClaudeTheme(name string) ([]byte, error) {
+	n, err := ResolveTheme(name)
+	if err != nil {
+		return nil, err
+	}
+	t := claudeTheme{Name: "Colorizer", Base: "dark"}
+	if n != DefaultTheme {
+		p := themes[n]
+		var base, fg, idle, working, attention, done, errc colors.Color
+		for _, f := range []struct {
+			dst *colors.Color
+			hex string
+		}{
+			{&base, p.Base}, {&fg, p.Fg}, {&idle, p.Idle}, {&working, p.Working},
+			{&attention, p.Attention}, {&done, p.Done}, {&errc, p.Error},
+		} {
+			if *f.dst, err = colors.ParseHex(f.hex); err != nil {
+				return nil, err
+			}
+		}
+		if base.Luminance() > 0.5 {
+			t.Base = "light"
+		}
+		shimmer := func(c colors.Color) string { return c.Mix(fg, shimmerAmount).Hex() }
+		t.Overrides = map[string]string{
+			"claude":                working.Hex(),
+			"claudeShimmer":         shimmer(working),
+			"text":                  fg.Hex(),
+			"inactive":              idle.Hex(),
+			"inactiveShimmer":       shimmer(idle),
+			"subtle":                base.Mix(idle, 0.5).Hex(),
+			"success":               done.Hex(),
+			"error":                 errc.Hex(),
+			"warning":               attention.Hex(),
+			"warningShimmer":        shimmer(attention),
+			"permission":            working.Hex(),
+			"permissionShimmer":     shimmer(working),
+			"promptBorder":          idle.Hex(),
+			"promptBorderShimmer":   shimmer(idle),
+			"planMode":              working.Hex(),
+			"diffAdded":             base.Mix(done, 0.25).Hex(),
+			"diffRemoved":           base.Mix(errc, 0.25).Hex(),
+			"userMessageBackground": base.Mix(fg, 0.06).Hex(),
+		}
+	}
+	out, err := json.MarshalIndent(t, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
+}
+
+// WriteClaudeTheme writes ClaudeTheme(name) to ClaudeThemePath, creating
+// the themes directory if needed. Claude Code reloads it on change.
+func WriteClaudeTheme(name string) error {
+	data, err := ClaudeTheme(name)
+	if err != nil {
+		return err
+	}
+	path := ClaudeThemePath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
