@@ -63,8 +63,8 @@ Code.
 
 6. **Set up your terminal, if needed.** Ghostty, iTerm2, Alacritty and
    Windows Terminal need nothing. Kitty and WezTerm need one line of config
-   for tab colors, and tmux needs passthrough. See
-   [Terminal support](#terminal-support) and [tmux](#tmux). Run
+   for tab colors, and tmux needs passthrough. herdr works without setup. See
+   [Terminal support](#terminal-support), [tmux](#tmux) and [herdr](#herdr). Run
    `claude-colorizer detect` to see which terminal was detected.
 
 7. **Try it.** Ask Claude to "emit some colors: just hex values". You should
@@ -104,6 +104,7 @@ how to report results or add a terminal.
 | Warp             | —                                | —                  | ✅ glyph       |
 | Alacritty        | — (no tabs)                      | ✅ OSC 11          | ✅ glyph       |
 | Windows Terminal | —                                | ✅ OSC 11          | ✅ glyph       |
+| herdr            | — (no passthrough)               | ✅ OSC 11 (pane)   | ✅ glyph³      |
 | other xterm-like | —                                | ✅ OSC 11          | ✅ glyph       |
 
 Statusline swatches use 24-bit SGR colors, which work in all of them.
@@ -121,9 +122,11 @@ Each terminal is a driver implementing `terminal.Terminal`
 (`internal/terminal/drivers.go`). Detection reads environment variables
 (`internal/terminal/detect.go`). Inside tmux it asks tmux which terminal
 each client tty attached to the session is running instead, because the
-environment describes the terminal that started the tmux server. If
+environment describes the terminal that started the tmux server. Inside
+herdr (`HERDR_ENV=1`), the herdr driver is always used, since herdr emulates
+its panes and nothing reaches the outer terminal. If
 different terminals are attached, tab colors are sent to all of them. To override detection, set
-`CLAUDE_COLORIZER_TERMINAL=kitty|ghostty|wezterm|iterm2|warp|alacritty|windows-terminal|generic`.
+`CLAUDE_COLORIZER_TERMINAL=kitty|ghostty|wezterm|iterm2|warp|alacritty|windows-terminal|herdr|generic`.
 Run `claude-colorizer detect` to see what was picked.
 
 ¹ **Kitty**: add `allow_remote_control yes` to `kitty.conf` (or `socket-only`
@@ -142,6 +145,9 @@ wezterm.on('format-tab-title', function(tab)
   end
 end)
 ```
+
+³ **herdr**: the title goes to the pane, not the outer window. See
+[herdr](#herdr).
 
 **Title fallback**: Claude Code sets the terminal title itself and may
 overwrite the glyph. If your version supports
@@ -209,6 +215,29 @@ a translucent terminal turns solid while the tint is on. There are two fixes:
 
   This needs passthrough enabled, and the tint covers every pane in the
   window rather than just Claude's. The default is `"pane"`.
+
+### herdr
+
+[herdr](https://herdr.dev) emulates each pane itself, so it needs no setup:
+the background tint and title apply to Claude's pane, and the tint is
+cleared when Claude exits back to the shell. `claude-colorizer detect` prints
+`terminal: herdr` and `herdr: yes`.
+
+herdr has no passthrough, so anything meant for the outer terminal is dropped:
+
+- tab colors (Kitty, iTerm2, WezTerm)
+- program status reports (OSC 7501). herdr tracks Claude's state in its own
+  sidebar instead.
+
+The pane title (with its glyph) stays inside herdr. To show it as the outer
+window title too, add this to herdr's `config.toml`:
+
+```toml
+[ui]
+window_title = "{terminal_title}"
+```
+
+`tmuxBackground` has no effect inside herdr.
 
 ## Install
 

@@ -481,8 +481,9 @@ func runDetect(cfg config.Config) {
 		}
 		return "no"
 	}
-	fmt.Printf("terminal:   %s\ntab color:  %s\nbackground: %s\ntitle:      %s\ntruecolor:  %s\ntmux:       %s\n",
-		term.Name(), yn(c.TabColor), yn(c.Background), yn(c.Title), yn(c.TrueColor), yn(terminal.InTmux(os.Getenv)))
+	fmt.Printf("terminal:   %s\ntab color:  %s\nbackground: %s\ntitle:      %s\ntruecolor:  %s\ntmux:       %s\nherdr:      %s\n",
+		term.Name(), yn(c.TabColor), yn(c.Background), yn(c.Title), yn(c.TrueColor),
+		yn(terminal.InTmux(os.Getenv)), yn(terminal.InHerdr(os.Getenv)))
 	for _, s := range []string{config.Idle, config.Working, config.Attention, config.Done, config.Error} {
 		st := cfg.States[s]
 		t, _ := colors.ParseHex(st.Tab)

@@ -15,11 +15,17 @@ const EnvOverride = "CLAUDE_COLORIZER_TERMINAL"
 // server, which may not be the one attached now. So the terminal of every
 // client tty attached to this pane's session is asked for instead, and the
 // environment is only a fallback.
+//
+// Inside herdr, panes are emulated by herdr itself and nothing reaches the
+// outer terminal, so the herdr driver is used whatever launched it.
 func Detect(getenv func(string) string) Terminal {
 	if name := getenv(EnvOverride); name != "" {
 		if t, ok := ByName(name); ok {
 			return t
 		}
+	}
+	if InHerdr(getenv) {
+		return Herdr{}
 	}
 	if InTmux(getenv) {
 		if t := fromClients(tmuxClients(getenv("TMUX_PANE"))); t != nil {
@@ -120,3 +126,9 @@ func fromEnv(getenv func(string) string) Terminal {
 
 // InTmux reports whether output goes through tmux (see Writer).
 func InTmux(getenv func(string) string) bool { return getenv("TMUX") != "" }
+
+// InHerdr reports whether this process runs in a herdr pane. herdr sets
+// HERDR_ENV=1 and TERM_PROGRAM=herdr in every pane.
+func InHerdr(getenv func(string) string) bool {
+	return getenv("HERDR_ENV") == "1" || strings.EqualFold(getenv("TERM_PROGRAM"), "herdr")
+}
