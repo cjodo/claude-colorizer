@@ -7,10 +7,12 @@
 #   scripts/manual-test.sh states   cycle every state on this terminal (watch it)
 #   scripts/manual-test.sh tmux     passthrough setup, raw OSC 7501, background window,
 #                                   tmuxBackground=terminal
-#   scripts/manual-test.sh all      all of the above
+#   scripts/manual-test.sh herdr    detection, pane title read back from herdr, pane tint
+#   scripts/manual-test.sh all      all of the above; tmux and herdr each run only
+#                                   when this shell is inside them
 #
 # DELAY sets the seconds each state is shown (default 2). CLAUDE_COLORIZER_CONFIG
-# is honored by `states` and `tmux`, so you can preview your own palette.
+# is honored by `states`, `tmux` and `herdr`, so you can preview your own palette.
 set -eu
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -91,6 +93,8 @@ check_hooks() {
 check_states() {
   say "states on this terminal (watch the tab, background and title)"
   "$bin" detect | sed 's/^/        /'
+  in_tmux && note "inside tmux: see the tmux stage for what needs passthrough"
+  in_herdr && note "inside herdr: expect the pane tint and title, never a tab color"
   for s in idle working attention done error; do
     note "$s"
     "$bin" set "$s"
@@ -100,10 +104,13 @@ check_states() {
   note "reset: your own theme should be back"
 }
 
+in_tmux()  { [ -n "${TMUX:-}" ]; }
+in_herdr() { [ "${HERDR_ENV:-}" = 1 ] || [ "${TERM_PROGRAM:-}" = herdr ]; }
+
 # tmux: passthrough setup, a raw OSC 7501 report, and one from a hidden window.
 check_tmux() {
   say "tmux passthrough"
-  if [ -z "${TMUX:-}" ]; then
+  if ! in_tmux; then
     note "not inside tmux; skipped"
     return
   fi
@@ -137,12 +144,58 @@ check_tmux() {
   note "the whole window should have been tinted, keeping any background opacity"
 }
 
+# herdr: herdr emulates its panes and has no passthrough, so only the pane
+# background and pane title can work. The title is read back from herdr.
+check_herdr() {
+  say "herdr"
+  if ! in_herdr; then
+    note "not inside herdr; skipped"
+    return
+  fi
+  got="$("$bin" detect | sed -n 's/^terminal: *//p')"
+  [ "$got" = herdr ] && ok "detected as herdr" || bad "detected as '$got', want 'herdr'"
+
+  pane_title() {
+    herdr pane get "${HERDR_PANE_ID:-}" 2>/dev/null | sed -n 's/.*"terminal_title":"\([^"]*\)".*/\1/p'
+  }
+  if in_tmux; then
+    note "tmux runs inside this herdr pane: the title goes to tmux, and tab colors and"
+    note "status reports stop at herdr; the tmux stage covers the rest"
+  elif [ -n "${CLAUDECODE:-}" ]; then
+    note "running under Claude Code, which keeps rewriting the pane title; run from a plain shell to check it"
+  elif [ -z "${HERDR_PANE_ID:-}" ] || ! command -v herdr >/dev/null 2>&1; then
+    note "HERDR_PANE_ID or the herdr CLI is missing; can't read the pane title back"
+  else
+    want="Claude Code · $(basename "$PWD")"
+    printf '{"tab":false,"background":false,"status":false}' >"$work/title.json"
+    CLAUDE_COLORIZER_CONFIG="$work/title.json" "$bin" set working
+    sleep 1
+    got="$(pane_title)"
+    case "$got" in
+      ?*" $want") ok "pane title after 'working': '$got'" ;;
+      *)          bad "pane title after 'working' is '$got', want '<glyph> $want'" ;;
+    esac
+    CLAUDE_COLORIZER_CONFIG="$work/title.json" "$bin" reset
+    sleep 1
+    got="$(pane_title)"
+    # reset has no session cwd, so the title loses the directory too.
+    [ "$got" = "Claude Code" ] && ok "pane title after reset: '$got'" || bad "pane title after reset is '$got', want 'Claude Code'"
+  fi
+
+  note "'working' tint on this pane for ${delay}s"
+  "$bin" set working
+  sleep "$delay"
+  "$bin" reset
+  note "only this pane should have been tinted, not the whole window or other panes"
+}
+
 case "${1:-all}" in
   hooks)  check_hooks ;;
   states) check_states ;;
   tmux)   check_tmux ;;
-  all)    check_hooks; check_states; check_tmux ;;
-  *)      sed -n '6,10p' "$0" | sed 's/^# //' >&2; exit 2 ;;
+  herdr)  check_herdr ;;
+  all)    check_hooks; check_states; check_tmux; check_herdr ;;
+  *)      sed -n '6,12p' "$0" | sed 's/^# //' >&2; exit 2 ;;
 esac
 
 if [ "$fails" -gt 0 ]; then
