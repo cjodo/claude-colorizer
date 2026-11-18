@@ -174,6 +174,24 @@ func (WindowsTerminal) Capabilities() Capabilities {
 }
 
 // ---------------------------------------------------------------------------
+// Herdr: a terminal workspace manager that emulates each pane itself. OSC
+// 11/111 recolor the pane and OSC 0/2 set the pane title (which herdr can
+// show as the outer window title via `[ui] window_title`). It has no
+// passthrough, so tab colors and other host-terminal sequences never reach
+// the outer terminal.
+
+type Herdr struct {
+	osc11
+	noTab
+	titled
+}
+
+func (Herdr) Name() string { return "herdr" }
+func (Herdr) Capabilities() Capabilities {
+	return Capabilities{Background: true, Title: true, TrueColor: true}
+}
+
+// ---------------------------------------------------------------------------
 // Generic: unknown xterm-compatible terminal. Uses only the most widely
 // implemented sequences.
 

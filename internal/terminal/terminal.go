@@ -42,7 +42,7 @@ type Terminal interface {
 // All returns one instance of every driver, in detection-priority order.
 func All() []Terminal {
 	return []Terminal{
-		Kitty{}, Ghostty{}, WezTerm{}, ITerm2{}, Warp{}, Alacritty{}, WindowsTerminal{}, Generic{},
+		Kitty{}, Ghostty{}, WezTerm{}, ITerm2{}, Warp{}, Alacritty{}, WindowsTerminal{}, Herdr{}, Generic{},
 	}
 }
 

@@ -34,6 +34,11 @@ func TestDetect(t *testing.T) {
 		{env("WT_SESSION", "abc"), "windows-terminal"},
 		{env("TERM", "xterm-256color"), "generic"},
 		{env("TERM_PROGRAM", "ghostty", EnvOverride, "WezTerm"), "wezterm"},
+		// herdr wins over host variables that leak into its panes.
+		{env("HERDR_ENV", "1", "TERM_PROGRAM", "herdr", "GHOSTTY_RESOURCES_DIR", "/usr/share/ghostty"), "herdr"},
+		{env("TERM_PROGRAM", "herdr"), "herdr"},
+		{env("HERDR_ENV", "1", "TMUX", "/tmp/tmux-1000/default,1,5"), "herdr"},
+		{env("HERDR_ENV", "1", EnvOverride, "kitty"), "kitty"},
 	}
 	for _, tc := range cases {
 		if got := Detect(tc.env).Name(); got != tc.want {

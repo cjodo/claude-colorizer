@@ -119,9 +119,9 @@ CLAUDE_COLORIZER_DEBUG=1 claude
 Open an issue with:
 
 - Terminal name, version and OS, and whether tmux was involved (with its
-  version and `allow-passthrough` setting).
+  version and `allow-passthrough` setting) or herdr (with its version).
 - The output of `claude-colorizer detect`.
-- The output of `env | grep -iE 'term|kitty|ghostty|wezterm|iterm|warp|alacritty|wt_session|tmux'`.
+- The output of `env | grep -iE 'term|kitty|ghostty|wezterm|iterm|warp|alacritty|wt_session|tmux|herdr'`.
   Check it for anything private before you paste it.
 - Which rows of the stage 1 and stage 3 checklists worked and which didn't.
 
