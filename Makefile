@@ -2,8 +2,10 @@
 
 GOBIN_DIR := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
 
+# Also stamps bin/.src-hash so scripts/run.sh knows this build is current.
 build:
 	go build -o bin/ ./cmd/claude-colorizer
+	scripts/src-hash.sh > bin/.src-hash
 
 # Installs the binary, then registers the statusline + hooks in ~/.claude/settings.json.
 install:

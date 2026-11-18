@@ -299,6 +299,31 @@ make uninstall        # or: claude-colorizer uninstall
 This removes only the entries it added, restores a chained statusline, and
 deletes the binary.
 
+### Updating
+
+Pull, refresh the statusline binary, then reinstall the plugin so Claude Code
+copies the new sources:
+
+```sh
+git pull
+make install ARGS="--no-hooks"
+```
+
+```
+/plugin uninstall claude-colorizer@claude-colorizer
+/plugin install claude-colorizer@claude-colorizer
+```
+
+Restart Claude Code afterwards. The plugin runs `bin/claude-colorizer`, and
+installing copies `bin/` from your checkout, which may be older than the
+sources. `scripts/run.sh` handles this: it keeps a checksum of the Go sources
+in `bin/.src-hash` and rebuilds the binary on the next hook when they differ.
+That needs Go on `PATH`. Without Go, the old binary keeps running, so run
+`make build` in the checkout before reinstalling.
+
+To check which build the plugin runs, call its own copy:
+`~/.claude/plugins/cache/claude-colorizer/claude-colorizer/*/scripts/run.sh detect`.
+
 ### Alternative: as a Claude Code plugin
 
 The repo is also a plugin marketplace. The plugin provides the hooks and
@@ -435,6 +460,10 @@ light `background` values, or set `"background": false`.
 make test     # go vet + unit tests (parser, drivers, detection, transcript)
 make cross    # linux/darwin/windows binaries in dist/
 ```
+
+`make build` writes `bin/` plus `bin/.src-hash`, the source checksum
+`scripts/run.sh` compares against before running the plugin's binary (see
+[Updating](#updating)).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for testing on a terminal and adding
 a new one.

@@ -26,6 +26,12 @@ make build     # binary in bin/
 make install   # go install + register statusline and hooks
 ```
 
+The plugin runs `bin/claude-colorizer`. `scripts/run.sh` rebuilds it when the
+Go sources no longer match `bin/.src-hash` (written by `make build` and by
+`run.sh` itself; checksum from `scripts/src-hash.sh`). A plugin install still
+copies sources from your checkout, so reinstall the plugin to test a change
+in a real session (see [Updating](README.md#updating)).
+
 ## Testing on your terminal
 
 `scripts/manual-test.sh` runs most of this for you, using a binary built
@@ -34,9 +40,10 @@ from your working tree:
 | Command                          | What it does                                                         |
 |----------------------------------|----------------------------------------------------------------------|
 | `scripts/manual-test.sh hooks`   | Feeds every hook event through and checks the saved session state, the statusline indicator and the `swatches` toggle. Automatic and silent: pass/fail only. |
-| `scripts/manual-test.sh states`  | Stage 1 below: `detect`, then each state for `DELAY` seconds, then `reset`. Watch the terminal. |
+| `scripts/manual-test.sh states`  | Stage 1 below: `detect` (and whether you're in tmux or herdr), then each state for `DELAY` seconds, then `reset`. Watch the terminal. |
 | `scripts/manual-test.sh tmux`    | Stage 2 below: checks the running server's `allow-passthrough`, sends a raw OSC 7501 report, then one from a hidden window, then a tint with `tmuxBackground: "terminal"`. |
-| `scripts/manual-test.sh`         | All three.                                                           |
+| `scripts/manual-test.sh herdr`   | Stage 2b below: checks detection says `herdr`, sets a state and reads the pane title back with `herdr pane get`, then tints the pane. Run it from a plain shell: under Claude Code (or tmux inside herdr) the title check is skipped. |
+| `scripts/manual-test.sh`         | All of the above. The tmux and herdr stages skip themselves unless the shell is inside them. |
 
 Test in two stages. Stage 1 checks the driver by hand. Stage 2 checks the
 hooks inside a real Claude Code session. If stage 1 fails, the driver or
@@ -86,6 +93,16 @@ true`), turn that on and repeat: only the pane should be tinted, and it should
 stay translucent. Then try `"tmuxBackground": "terminal"`: the whole window
 should be tinted and keep its opacity, and `reset` should bring back both.
 
+### 2b. The same, inside herdr
+
+Repeat stage 1 in a herdr pane. `detect` should say `terminal: herdr`
+whatever terminal herdr runs in, since herdr emulates its panes and nothing
+passes through to the outer terminal. Each `set` should tint only that pane
+and put the glyph in the pane title (shown in herdr's UI, or in the outer
+window with `[ui] window_title = "{terminal_title}"`). Tab colors and OSC 7501
+reports never arrive; that's expected. After you quit Claude Code, herdr
+itself restores the pane's colors once the shell is back in front.
+
 ### 3. A real Claude Code session
 
 ```sh
@@ -112,6 +129,7 @@ CLAUDE_COLORIZER_DEBUG=1 claude
 | Works by hand, not inside Claude Code          | The hook can't reach the TTY; check the debug output               |
 | Colors stay after quitting                     | `SessionEnd` didn't run (the session was killed or crashed)        |
 | Tint is opaque inside tmux                     | tmux paints the pane itself; see [Background opacity](README.md#tmux) |
+| A merged change doesn't show up                | The plugin wasn't reinstalled, or Go isn't on `PATH` so the stale `bin/` build ran; see [Updating](README.md#updating) |
 | Swatches look washed out or wrong              | No truecolor; `echo $COLORTERM` should print `truecolor`           |
 
 ## Reporting a terminal
